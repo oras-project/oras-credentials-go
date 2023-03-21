@@ -15,10 +15,6 @@
 test: vendor check-encoding
 	go test -race -v -coverprofile=coverage.txt -covermode=atomic ./...
 
-.PHONY: covhtml
-covhtml:
-	open .cover/coverage.html
-
 .PHONY: clean
 clean:
 	git status --ignored --short | grep '^!! ' | sed 's/!! //' | xargs rm -rf
