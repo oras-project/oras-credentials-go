@@ -1,3 +1,3 @@
-module github.com/oras-project/oras-credentials-go
+module oras.land/oras-credentials-go
 
 go 1.19
