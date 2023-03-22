@@ -11,18 +11,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+name: License Checker
 
-# Test binary, built with `go test -c`
-*.test
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+permissions:
+  contents: write
+  pull-requests: write
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+jobs:
+  check-license:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check license header
+        uses: apache/skywalking-eyes/header@v0.4.0
+        with:
+          mode: check
+          config: .github/licenserc.yml
+      - name: Check dependencies license
+        uses: apache/skywalking-eyes/dependency@v0.4.0
+        with:
+          config: .github/licenserc.yml
