@@ -2,6 +2,11 @@
 
 > **Warning** This project is currently under initial development. APIs may and will be changed incompatibly from one commit to another.
 
+[![Build Status](https://github.com/oras-project/oras-credentials-go/actions/workflows/build.yml/badge.svg?event=push&branch=main)](https://github.com/oras-project/oras-credentials-go/actions/workflows/build.yml?query=workflow%3Abuild+event%3Apush+branch%3Amain)
+[![codecov](https://codecov.io/gh/oras-project/oras-credentials-go/branch/main/graph/badge.svg)](https://codecov.io/gh/oras-project/oras-credentials-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/oras-project/oras-credentials-go)](https://goreportcard.com/report/github.com/oras-project/oras-credentials-go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/oras-project/oras-credentials-go.svg)](https://pkg.go.dev/github.com/oras-project/oras-credentials-go)
+
 ![ORAS](https://github.com/oras-project/oras-www/raw/main/docs/assets/images/oras.png)
 
 ## Versioning
