@@ -23,10 +23,10 @@ import (
 
 // Store is the interface that any credentials store must implement.
 type Store interface {
+	// Get retrieves credentials from the store for the given server address.
+	Get(ctx context.Context, serverAddress string) (auth.Credential, error)
 	// Put saves credentials into the store for the given server address.
 	Put(ctx context.Context, serverAddress string, cred auth.Credential) error
 	// Delete removes credentials from the store for the given server address.
 	Delete(ctx context.Context, serverAddress string) error
-	// Get retrieves credentials from the store for the given server address.
-	Get(ctx context.Context, serverAddress string) (auth.Credential, error)
 }
