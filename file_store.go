@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -29,6 +30,7 @@ const (
 
 var (
 	ErrCredentialNotFound = errors.New("credential not found")
+	ErrInvalidFormat      = errors.New("invalid format")
 )
 
 // authConfig contains authorization information for connecting to a Registry
@@ -45,13 +47,17 @@ type authConfig struct {
 
 // NewFileStore creates a new file credentials store.
 func NewFileStore(configPath string) (Store, error) {
+	fs := &FileStore{configPath: configPath}
 	configFile, err := os.Open(configPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			fs.data = make(map[string]interface{})
+			return fs, nil
+		}
 		return nil, err
 	}
 	defer configFile.Close()
 
-	fs := &FileStore{configPath: configPath}
 	jsonObj, err := ioutil.ReadAll(configFile)
 	if err != nil {
 		return nil, err
@@ -65,8 +71,38 @@ func NewFileStore(configPath string) (Store, error) {
 
 // Put saves credentials into the store
 // TODO: concurrency?
-func (fs *FileStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	panic("not implemented") // TODO: Implement
+func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
+	if !ok {
+		authsMap = make(map[string]interface{})
+	}
+	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
+	if !ok {
+		authConfigObj = make(map[string]interface{})
+	}
+	// TODO: patch update or overwrite?
+	if cred.Username != "" || cred.Password != "" {
+		authConfigObj[ConfigFieldAuth] = encodeAuth(cred.Username, cred.Password)
+	}
+	if cred.RefreshToken != "" {
+		authConfigObj[ConfigFieldIdentityToken] = cred.RefreshToken
+	}
+	if cred.AccessToken != "" {
+		authConfigObj[ConfigfieldRegistryToken] = cred.AccessToken
+	}
+
+	// update data
+	authsMap[serverAddress] = authConfigObj
+	fs.data[ConfigFieldAuth] = authsMap
+
+	jsonData, err := json.MarshalIndent(fs.data, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+	return nil
 }
 
 // Delete removes credentials from the store for the given server
@@ -95,13 +131,13 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 	if !ok {
 		return authConfig{}, ErrCredentialNotFound
 	}
-	authConfigMap, ok := authsMap[serverAddress].(map[string]interface{})
+	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
 	if !ok {
 		return authConfig{}, ErrCredentialNotFound
 	}
 
 	var authConfig authConfig
-	for k, v := range authConfigMap {
+	for k, v := range authConfigObj {
 		switch k {
 		case ConfigFieldAuth:
 			authConfig.Auth = v.(string)
@@ -112,6 +148,19 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 		}
 	}
 	return authConfig, nil
+}
+
+// encodeAuth creates a base64 encoded string to containing authorization information
+func encodeAuth(username, password string) string {
+	if username == "" && password == "" {
+		return ""
+	}
+
+	authStr := username + ":" + password
+	msg := []byte(authStr)
+	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
+	base64.StdEncoding.Encode(encoded, msg)
+	return string(encoded)
 }
 
 // decodeAuth decodes a base64 encoded string and returns username and password

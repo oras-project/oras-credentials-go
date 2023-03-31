@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -126,5 +127,29 @@ func TestFileStore_Get(t *testing.T) {
 				t.Errorf("FileStore.Get() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// TODO: how to test?
+func TestFileStore_Put(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.test.json")
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		panic(err)
+	}
+
+	reg := "test0331.test.com"
+	cred := auth.Credential{
+		Username:     "username",
+		Password:     "password",
+		RefreshToken: "refresh_token",
+		AccessToken:  "access_token",
+	}
+
+	ctx := context.Background()
+	if err := fs.Put(ctx, reg, cred); err != nil {
+		panic(err)
 	}
 }
