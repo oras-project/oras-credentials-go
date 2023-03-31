@@ -153,3 +153,42 @@ func TestFileStore_Put(t *testing.T) {
 		panic(err)
 	}
 }
+
+func TestFileStore_Delete(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.test.json")
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		panic(err)
+	}
+
+	reg1 := "test1.test.com"
+	cred1 := auth.Credential{
+		Username:     "username",
+		Password:     "password",
+		RefreshToken: "refresh_token",
+		AccessToken:  "access_token",
+	}
+
+	ctx := context.Background()
+	if err := fs.Put(ctx, reg1, cred1); err != nil {
+		panic(err)
+	}
+
+	reg2 := "test2.test.com"
+	cred2 := auth.Credential{
+		Username:     "username2",
+		Password:     "password2",
+		RefreshToken: "refresh_token2",
+		AccessToken:  "access_token2",
+	}
+	// TODO: WRONG! reg1 is overwritten
+	if err := fs.Put(ctx, reg2, cred2); err != nil {
+		panic(err)
+	}
+
+	if err := fs.Delete(ctx, reg1); err != nil {
+		panic(err)
+	}
+}

@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -16,9 +18,10 @@ import (
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
 type FileStore struct {
+	DisableSave bool
 	configPath  string
 	data        map[string]interface{}
-	DisableSave bool
+	dataLock    sync.RWMutex
 }
 
 const (
@@ -29,8 +32,9 @@ const (
 )
 
 var (
-	ErrCredentialNotFound = errors.New("credential not found")
-	ErrInvalidFormat      = errors.New("invalid format")
+	ErrCredentialNotFound    = errors.New("credential not found")
+	ErrInvalidFormat         = errors.New("invalid format")
+	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
 
 // authConfig contains authorization information for connecting to a Registry
@@ -67,18 +71,59 @@ func NewFileStore(configPath string) (Store, error) {
 	return fs, nil
 }
 
+// Get retrieves credentials from the store for the given server
+func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
+	fs.dataLock.RLock()
+	defer fs.dataLock.RUnlock()
+
+	cred := auth.Credential{}
+	authConfig, err := fs.getAuthConfig(serverAddress)
+	if err != nil {
+		return auth.EmptyCredential, err
+	}
+	cred.Username, cred.Password, err = decodeAuth(authConfig.Auth)
+	if err != nil {
+		return auth.EmptyCredential, err
+	}
+	cred.RefreshToken = authConfig.IdentityToken
+	cred.AccessToken = authConfig.RegistryToken
+	return cred, nil
+}
+
 // Put saves credentials into the store
 // TODO: concurrency?
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+	if fs.DisableSave {
+		return ErrPlainTextSaveDisabled
+	}
+
+	fs.dataLock.Lock()
+	defer fs.dataLock.Unlock()
+
 	fs.updateAuths(serverAddress, cred)
-	jsonData, err := json.MarshalIndent(fs.data, "", "    ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal credentials: %w", err)
+	return fs.saveFile()
+}
+
+// Delete removes credentials from the store for the given server
+func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
+	fs.dataLock.Lock()
+	defer fs.dataLock.Unlock()
+
+	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
+	if !ok {
+		// TODO: no ops?
+		return ErrInvalidFormat
 	}
-	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
-		return fmt.Errorf("failed to save credentials: %w", err)
+	if _, ok = authsMap[serverAddress]; !ok {
+		// no ops
+		return nil
 	}
-	return nil
+
+	// update data
+	delete(authsMap, serverAddress)
+	fs.data[ConfigFieldAuths] = authsMap
+	// TODO: create config or not if not exist?
+	return fs.saveFile()
 }
 
 func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
@@ -106,27 +151,6 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	fs.data[ConfigFieldAuth] = authsMap
 }
 
-// Delete removes credentials from the store for the given server
-func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
-	panic("not implemented") // TODO: Implement
-}
-
-// Get retrieves credentials from the store for the given server
-func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	cred := auth.Credential{}
-	authConfig, err := fs.getAuthConfig(serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
-	cred.Username, cred.Password, err = decodeAuth(authConfig.Auth)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
-	cred.RefreshToken = authConfig.IdentityToken
-	cred.AccessToken = authConfig.RegistryToken
-	return cred, nil
-}
-
 func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
 	if !ok {
@@ -149,6 +173,24 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 		}
 	}
 	return authConfig, nil
+}
+
+func (fs *FileStore) saveFile() error {
+	// TODO: save to temp and copy
+	// TODO: handle symlink
+	// TODO: handle permissions
+	jsonData, err := json.MarshalIndent(fs.data, "", "\t")
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+	dir := filepath.Dir(fs.configPath)
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		return fmt.Errorf("failed to make directory: %w", err)
+	}
+	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+	return nil
 }
 
 // encodeAuth creates a base64 encoded string to containing authorization information
