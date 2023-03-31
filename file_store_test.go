@@ -106,7 +106,7 @@ func TestFileStore_Get(t *testing.T) {
 			name:          "registry token",
 			serverAddress: "registry3.example.com",
 			want: auth.Credential{
-				RefreshToken: "registry_token",
+				AccessToken: "registry_token",
 			},
 		},
 		{
