@@ -35,9 +35,7 @@ var (
 
 // authConfig contains authorization information for connecting to a Registry
 type authConfig struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Auth     string `json:"auth,omitempty"`
+	Auth string `json:"auth,omitempty"`
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
@@ -72,6 +70,18 @@ func NewFileStore(configPath string) (Store, error) {
 // Put saves credentials into the store
 // TODO: concurrency?
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+	fs.updateAuths(serverAddress, cred)
+	jsonData, err := json.MarshalIndent(fs.data, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+	return nil
+}
+
+func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
 	if !ok {
 		authsMap = make(map[string]interface{})
@@ -94,15 +104,6 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 	// update data
 	authsMap[serverAddress] = authConfigObj
 	fs.data[ConfigFieldAuth] = authsMap
-
-	jsonData, err := json.MarshalIndent(fs.data, "", "    ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal credentials: %w", err)
-	}
-	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
-		return fmt.Errorf("failed to save credentials: %w", err)
-	}
-	return nil
 }
 
 // Delete removes credentials from the store for the given server
