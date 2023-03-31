@@ -21,15 +21,18 @@ type FileStore struct {
 }
 
 const (
-	ConfigFieldAuths = "auths"
+	ConfigFieldAuths         = "auths"
+	ConfigFieldAuth          = "auth"
+	ConfigFieldIdentityToken = "identitytoken"
+	ConfigfieldRegistryToken = "registrytoken"
 )
 
 var (
 	ErrCredentialNotFound = errors.New("credential not found")
 )
 
-// AuthConfig contains authorization information for connecting to a Registry
-type AuthConfig struct {
+// authConfig contains authorization information for connecting to a Registry
+type authConfig struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 	Auth     string `json:"auth,omitempty"`
@@ -61,6 +64,7 @@ func NewFileStore(configPath string) (Store, error) {
 }
 
 // Put saves credentials into the store
+// TODO: concurrency?
 func (fs *FileStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
 	panic("not implemented") // TODO: Implement
 }
@@ -86,28 +90,27 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	return cred, nil
 }
 
-func (fs *FileStore) getAuthConfig(serverAddress string) (AuthConfig, error) {
+func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
 	if !ok {
-		return AuthConfig{}, ErrCredentialNotFound
+		return authConfig{}, ErrCredentialNotFound
 	}
 	authConfigMap, ok := authsMap[serverAddress].(map[string]interface{})
 	if !ok {
-		return AuthConfig{}, ErrCredentialNotFound
+		return authConfig{}, ErrCredentialNotFound
 	}
 
-	var authConfig AuthConfig
+	var authConfig authConfig
 	for k, v := range authConfigMap {
 		switch k {
-		case "auth":
+		case ConfigFieldAuth:
 			authConfig.Auth = v.(string)
-		case "identitytoken":
+		case ConfigFieldIdentityToken:
 			authConfig.IdentityToken = v.(string)
-		case "registrytoken":
+		case ConfigfieldRegistryToken:
 			authConfig.RegistryToken = v.(string)
 		}
 	}
-
 	return authConfig, nil
 }
 

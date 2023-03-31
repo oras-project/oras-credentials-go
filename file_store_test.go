@@ -76,7 +76,7 @@ func TestGet(t *testing.T) {
 
 func TestFileStore_Get(t *testing.T) {
 	ctx := context.Background()
-	fs, err := NewFileStore("config.test.json")
+	fs, err := NewFileStore("testdata/config.test.json")
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
