@@ -100,11 +100,17 @@ func testCommandFn(args ...string) client.Program {
 	}
 }
 
-func TestNativeStore(t *testing.T) {
+func TestNativeStore_interface(t *testing.T) {
+	var ns interface{} = &NativeStore{}
+	if _, ok := ns.(Store); !ok {
+		t.Error("&NativeStore{} does not conform Store")
+	}
+}
+
+func TestNativeStore_basicAuth(t *testing.T) {
 	ns := &NativeStore{
 		programFunc: testCommandFn,
 	}
-	// Test 1: with basic auth credentials
 	// Put
 	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
 	if err != nil {
@@ -126,15 +132,19 @@ func TestNativeStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("basic auth test ns.Delete fails: %v", err)
 	}
+}
 
-	// Test 2: with refresh token
+func TestNativeStore_refreshToken(t *testing.T) {
+	ns := &NativeStore{
+		programFunc: testCommandFn,
+	}
 	// Put
-	err = ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
+	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
 	if err != nil {
 		t.Fatalf("refresh token test ns.Put fails: %v", err)
 	}
 	// Get
-	cred, err = ns.Get(context.Background(), bearerAuthHost)
+	cred, err := ns.Get(context.Background(), bearerAuthHost)
 	if err != nil {
 		t.Fatalf("refresh token test ns.Get fails: %v", err)
 	}
