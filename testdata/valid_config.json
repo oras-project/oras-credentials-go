@@ -14,7 +14,16 @@
             "identitytoken": "identity_token",
             "registrytoken": "registry_token"
         },
-        "registry5.example.com": {}
+        "registry5.example.com": {},
+        "registry6.example.com": {
+            "username": "username",
+            "password": "password"
+        },
+        "registry7.example.com": {
+            "auth": "dXNlcm5hbWU6cGFzc3dvcmQ=",
+            "username": "foo",
+            "password": "bar"
+        }
     },
     "credsStore": "mycredsstore",
     "credHelpers": {

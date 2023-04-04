@@ -63,6 +63,22 @@ func TestFileStore_Get_ValidConfig(t *testing.T) {
 			want:          auth.EmptyCredential,
 		},
 		{
+			name:          "Username and password, no auth",
+			serverAddress: "registry6.example.com",
+			want: auth.Credential{
+				Username: "username",
+				Password: "password",
+			},
+		},
+		{
+			name:          "Auth overriding Username and password",
+			serverAddress: "registry7.example.com",
+			want: auth.Credential{
+				Username: "username",
+				Password: "password",
+			},
+		},
+		{
 			name:          "Not in auths",
 			serverAddress: "foo.example.com",
 			want:          auth.EmptyCredential,

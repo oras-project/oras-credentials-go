@@ -26,6 +26,8 @@ type FileStore struct {
 
 const (
 	ConfigFieldAuthConfigs   = "auths"
+	ConfigFieldUsername      = "username"
+	ConfigFieldPassword      = "password"
 	ConfigFieldBasicAuth     = "auth"
 	ConfigFieldIdentityToken = "identitytoken"
 	ConfigfieldRegistryToken = "registrytoken"
@@ -39,7 +41,9 @@ var (
 // TODO: parse username and password
 // authConfig contains authorization information for connecting to a Registry
 type authConfig struct {
-	Auth string `json:"auth,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Auth     string `json:"auth,omitempty"`
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
@@ -76,15 +80,20 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	fs.dataLock.RLock()
 	defer fs.dataLock.RUnlock()
 
-	cred := auth.Credential{}
-	authConfig := fs.getAuthConfig(serverAddress)
-	var err error
-	cred.Username, cred.Password, err = decodeAuth(authConfig.Auth)
-	if err != nil {
-		return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
+	authCfg := fs.getAuthConfig(serverAddress)
+	cred := auth.Credential{
+		Username:     authCfg.Username,
+		Password:     authCfg.Password,
+		RefreshToken: authCfg.IdentityToken,
+		AccessToken:  authCfg.RegistryToken,
 	}
-	cred.RefreshToken = authConfig.IdentityToken
-	cred.AccessToken = authConfig.RegistryToken
+	if authCfg.Auth != "" {
+		var err error
+		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
+		}
+	}
 	return cred, nil
 }
 
@@ -158,18 +167,22 @@ func (fs *FileStore) getAuthConfig(serverAddress string) authConfig {
 		return authConfig{}
 	}
 
-	var authConfig authConfig
+	var authCfg authConfig
 	for k, v := range authConfigObj {
 		switch k {
+		case ConfigFieldUsername:
+			authCfg.Username, _ = v.(string)
+		case ConfigFieldPassword:
+			authCfg.Password, _ = v.(string)
 		case ConfigFieldBasicAuth:
-			authConfig.Auth = v.(string)
+			authCfg.Auth, _ = v.(string)
 		case ConfigFieldIdentityToken:
-			authConfig.IdentityToken = v.(string)
+			authCfg.IdentityToken, _ = v.(string)
 		case ConfigfieldRegistryToken:
-			authConfig.RegistryToken = v.(string)
+			authCfg.RegistryToken, _ = v.(string)
 		}
 	}
-	return authConfig
+	return authCfg
 }
 
 func (fs *FileStore) saveFile() error {
