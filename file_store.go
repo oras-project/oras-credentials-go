@@ -32,7 +32,6 @@ const (
 )
 
 var (
-	ErrCredentialNotFound    = errors.New("credential not found")
 	ErrInvalidFormat         = errors.New("invalid format")
 	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
@@ -77,10 +76,8 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	defer fs.dataLock.RUnlock()
 
 	cred := auth.Credential{}
-	authConfig, err := fs.getAuthConfig(serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
+	authConfig := fs.getAuthConfig(serverAddress)
+	var err error
 	cred.Username, cred.Password, err = decodeAuth(authConfig.Auth)
 	if err != nil {
 		return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
@@ -150,14 +147,14 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	fs.data[ConfigFieldAuthConfigs] = authsMap
 }
 
-func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
+func (fs *FileStore) getAuthConfig(serverAddress string) authConfig {
 	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
-		return authConfig{}, ErrCredentialNotFound
+		return authConfig{}
 	}
 	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
 	if !ok {
-		return authConfig{}, ErrCredentialNotFound
+		return authConfig{}
 	}
 
 	var authConfig authConfig
@@ -171,7 +168,7 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 			authConfig.RegistryToken = v.(string)
 		}
 	}
-	return authConfig, nil
+	return authConfig
 }
 
 func (fs *FileStore) saveFile() error {
