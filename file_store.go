@@ -26,7 +26,7 @@ type FileStore struct {
 
 const (
 	ConfigFieldAuths         = "auths"
-	ConfigFieldAuth          = "auth"
+	ConfigFieldBasicAuth     = "auth"
 	ConfigFieldIdentityToken = "identitytoken"
 	ConfigfieldRegistryToken = "registrytoken"
 )
@@ -91,7 +91,6 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 }
 
 // Put saves credentials into the store
-// TODO: concurrency?
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	if fs.DisableSave {
 		return ErrPlainTextSaveDisabled
@@ -137,7 +136,7 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	}
 	// TODO: patch update or overwrite?
 	if cred.Username != "" || cred.Password != "" {
-		authConfigObj[ConfigFieldAuth] = encodeAuth(cred.Username, cred.Password)
+		authConfigObj[ConfigFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
 	}
 	if cred.RefreshToken != "" {
 		authConfigObj[ConfigFieldIdentityToken] = cred.RefreshToken
@@ -148,7 +147,7 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 
 	// update data
 	authsMap[serverAddress] = authConfigObj
-	fs.data[ConfigFieldAuth] = authsMap
+	fs.data[ConfigFieldAuths] = authsMap
 }
 
 func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
@@ -164,7 +163,7 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 	var authConfig authConfig
 	for k, v := range authConfigObj {
 		switch k {
-		case ConfigFieldAuth:
+		case ConfigFieldBasicAuth:
 			authConfig.Auth = v.(string)
 		case ConfigFieldIdentityToken:
 			authConfig.IdentityToken = v.(string)

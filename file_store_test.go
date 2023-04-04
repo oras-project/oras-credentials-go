@@ -183,7 +183,6 @@ func TestFileStore_Delete(t *testing.T) {
 		RefreshToken: "refresh_token2",
 		AccessToken:  "access_token2",
 	}
-	// TODO: WRONG! reg1 is overwritten
 	if err := fs.Put(ctx, reg2, cred2); err != nil {
 		panic(err)
 	}
