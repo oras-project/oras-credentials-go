@@ -36,6 +36,7 @@ var (
 	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
 
+// TODO: parse username and password
 // authConfig contains authorization information for connecting to a Registry
 type authConfig struct {
 	Auth string `json:"auth,omitempty"`

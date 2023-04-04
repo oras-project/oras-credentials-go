@@ -547,14 +547,33 @@ func Test_decodeAuth(t *testing.T) {
 		authStr  string
 		username string
 		password string
-		wantErr  error
+		wantErr  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:     "Success",
+			authStr:  "dXNlcm5hbWU6cGFzc3dvcmQ=", // username:password
+			username: "username",
+			password: "password",
+		},
+		{
+			name:     "Invalid base64",
+			authStr:  "whatever",
+			username: "",
+			password: "",
+			wantErr:  true,
+		},
+		{
+			name:     "Invalid username password format",
+			authStr:  "d2hhdGV2ZXI=", // whatever
+			username: "",
+			password: "",
+			wantErr:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotUsername, gotPassword, err := decodeAuth(tt.authStr)
-			if errors.Is(err, tt.wantErr) {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("decodeAuth() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
