@@ -28,7 +28,7 @@ const (
 	emptyUsername           = "<token>"
 )
 
-// nativeAuthStore implements a credentials store using native keychain to keep
+// NativeStore implements a credentials store using native keychain to keep
 // credentials secure.
 type NativeStore struct {
 	programFunc client.ProgramFunc
