@@ -3,6 +3,7 @@ package credentials
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -75,9 +76,9 @@ func TestGet(t *testing.T) {
 	config.Save("myregistry.example.com", auth.Credential{Username: "abc", Password: "123"})
 }
 
-func TestFileStore_Get(t *testing.T) {
+func TestFileStore_Get_ValidConfig(t *testing.T) {
 	ctx := context.Background()
-	fs, err := NewFileStore("testdata/config.test.json")
+	fs, err := NewFileStore("testdata/valid_config.json")
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
@@ -86,10 +87,10 @@ func TestFileStore_Get(t *testing.T) {
 		name          string
 		serverAddress string
 		want          auth.Credential
-		wantErr       bool
+		wantErr       error
 	}{
 		{
-			name:          "username + password",
+			name:          "Username and password",
 			serverAddress: "registry1.example.com",
 			want: auth.Credential{
 				Username: "username",
@@ -97,29 +98,159 @@ func TestFileStore_Get(t *testing.T) {
 			},
 		},
 		{
-			name:          "identity token",
+			name:          "Identity token",
 			serverAddress: "registry2.example.com",
 			want: auth.Credential{
 				RefreshToken: "identity_token",
 			},
 		},
 		{
-			name:          "registry token",
+			name:          "Registry token",
 			serverAddress: "registry3.example.com",
 			want: auth.Credential{
 				AccessToken: "registry_token",
 			},
 		},
 		{
-			name:          "empty",
+			name:          "Username and password, identity token and registry token",
 			serverAddress: "registry4.example.com",
+			want: auth.Credential{
+				Username:     "username",
+				Password:     "password",
+				RefreshToken: "identity_token",
+				AccessToken:  "registry_token",
+			},
+		},
+		{
+			name:          "Empty credential",
+			serverAddress: "registry5.example.com",
 			want:          auth.EmptyCredential,
+		},
+		{
+			name:          "Not found",
+			serverAddress: "foo.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrCredentialNotFound,
+		},
+		{
+			name:          "No record",
+			serverAddress: "registry999.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrCredentialNotFound,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := fs.Get(ctx, tt.serverAddress)
-			if (err != nil) != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FileStore.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileStore_Get_InvalidConfig(t *testing.T) {
+	ctx := context.Background()
+	fs, err := NewFileStore("testdata/invalid_config.json")
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+
+	tests := []struct {
+		name          string
+		serverAddress string
+		want          auth.Credential
+		wantErr       error
+	}{
+		{
+			name:          "Invalid auth encode",
+			serverAddress: "registry1.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrInvalidFormat,
+		},
+		{
+			name:          "Invalid auths format",
+			serverAddress: "registry2.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrCredentialNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fs.Get(ctx, tt.serverAddress)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FileStore.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileStore_Get_EmptyConfig(t *testing.T) {
+	ctx := context.Background()
+	fs, err := NewFileStore("testdata/empty_config.json")
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+
+	tests := []struct {
+		name          string
+		serverAddress string
+		want          auth.Credential
+		wantErr       error
+	}{
+		{
+			name:          "Not found",
+			serverAddress: "registry.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrCredentialNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fs.Get(ctx, tt.serverAddress)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FileStore.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileStore_Get_ConfigNotExist(t *testing.T) {
+	ctx := context.Background()
+	fs, err := NewFileStore("whatever")
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+
+	tests := []struct {
+		name          string
+		serverAddress string
+		want          auth.Credential
+		wantErr       error
+	}{
+		{
+			name:          "Not found",
+			serverAddress: "registry.example.com",
+			want:          auth.EmptyCredential,
+			wantErr:       ErrCredentialNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := fs.Get(ctx, tt.serverAddress)
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

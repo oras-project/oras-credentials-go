@@ -25,7 +25,7 @@ type FileStore struct {
 }
 
 const (
-	ConfigFieldAuths         = "auths"
+	ConfigFieldAuthConfigs   = "auths"
 	ConfigFieldBasicAuth     = "auth"
 	ConfigFieldIdentityToken = "identitytoken"
 	ConfigfieldRegistryToken = "registrytoken"
@@ -83,7 +83,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	}
 	cred.Username, cred.Password, err = decodeAuth(authConfig.Auth)
 	if err != nil {
-		return auth.EmptyCredential, err
+		return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
 	}
 	cred.RefreshToken = authConfig.IdentityToken
 	cred.AccessToken = authConfig.RegistryToken
@@ -108,7 +108,7 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	fs.dataLock.Lock()
 	defer fs.dataLock.Unlock()
 
-	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
+	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		// TODO: no ops?
 		return ErrInvalidFormat
@@ -120,13 +120,13 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 
 	// update data
 	delete(authsMap, serverAddress)
-	fs.data[ConfigFieldAuths] = authsMap
+	fs.data[ConfigFieldAuthConfigs] = authsMap
 	// TODO: create config or not if not exist?
 	return fs.saveFile()
 }
 
 func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
-	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
+	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		authsMap = make(map[string]interface{})
 	}
@@ -147,11 +147,11 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 
 	// update data
 	authsMap[serverAddress] = authConfigObj
-	fs.data[ConfigFieldAuths] = authsMap
+	fs.data[ConfigFieldAuthConfigs] = authsMap
 }
 
 func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
-	authsMap, ok := fs.data[ConfigFieldAuths].(map[string]interface{})
+	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		return authConfig{}, ErrCredentialNotFound
 	}
