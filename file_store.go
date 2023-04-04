@@ -48,7 +48,7 @@ type authConfig struct {
 }
 
 // NewFileStore creates a new file credentials store.
-func NewFileStore(configPath string) (Store, error) {
+func NewFileStore(configPath string) (*FileStore, error) {
 	fs := &FileStore{configPath: configPath}
 	configFile, err := os.Open(configPath)
 	if err != nil {
