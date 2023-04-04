@@ -63,7 +63,7 @@ func TestFileStore_Get_ValidConfig(t *testing.T) {
 			want:          auth.EmptyCredential,
 		},
 		{
-			name:          "Not found",
+			name:          "Not in auths",
 			serverAddress: "foo.example.com",
 			want:          auth.EmptyCredential,
 		},
@@ -202,7 +202,7 @@ func TestFileStore_Put(t *testing.T) {
 
 	fs, err := NewFileStore(configPath)
 	if err != nil {
-		panic(err)
+		t.Fatal("NewFileStore() error =", err)
 	}
 
 	server := "test.example.com"
@@ -260,16 +260,17 @@ func TestFileStore_Put_ExistingConfig(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
 
+	// prepare test content
 	server1 := "registry1.example.com"
-	type config struct {
-		AuthConfigs map[string]authConfig `json:"auths"`
-		SomeField   string                `json:"some_field"`
-	}
 	cred1 := auth.Credential{
 		Username:     "username",
 		Password:     "password",
 		RefreshToken: "refresh_token",
 		AccessToken:  "access_token",
+	}
+	type config struct {
+		AuthConfigs map[string]authConfig `json:"auths"`
+		SomeField   string                `json:"some_field"`
 	}
 	cfg := config{
 		AuthConfigs: map[string]authConfig{
@@ -292,7 +293,7 @@ func TestFileStore_Put_ExistingConfig(t *testing.T) {
 	// test put
 	fs, err := NewFileStore(configPath)
 	if err != nil {
-		panic(err)
+		t.Fatal("NewFileStore() error =", err)
 	}
 	server2 := "registry2.example.com"
 	cred2 := auth.Credential{
@@ -355,7 +356,7 @@ func TestStore_Put_DisablePlainText(t *testing.T) {
 
 	fs, err := NewFileStore(configPath)
 	if err != nil {
-		panic(err)
+		t.Fatal("NewFileStore() error =", err)
 	}
 	fs.DisableSave = true
 
@@ -372,40 +373,197 @@ func TestStore_Put_DisablePlainText(t *testing.T) {
 	}
 }
 
-// func TestFileStore_Delete(t *testing.T) {
-// 	tempDir := t.TempDir()
-// 	configPath := filepath.Join(tempDir, "config.test.json")
+func TestFileStore_Delete(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
 
-// 	fs, err := NewFileStore(configPath)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	// prepare test content
+	server1 := "registry1.example.com"
+	cred1 := auth.Credential{
+		Username:     "username",
+		Password:     "password",
+		RefreshToken: "refresh_token",
+		AccessToken:  "access_token",
+	}
+	server2 := "registry2.example.com"
+	cred2 := auth.Credential{
+		Username:     "username_2",
+		Password:     "password_2",
+		RefreshToken: "refresh_token_2",
+		AccessToken:  "access_token_2",
+	}
 
-// 	reg1 := "test1.test.com"
-// 	cred1 := auth.Credential{
-// 		Username:     "username",
-// 		Password:     "password",
-// 		RefreshToken: "refresh_token",
-// 		AccessToken:  "access_token",
-// 	}
+	type config struct {
+		AuthConfigs map[string]authConfig `json:"auths"`
+		SomeField   string                `json:"some_field"`
+	}
+	cfg := config{
+		AuthConfigs: map[string]authConfig{
+			server1: {
+				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
+				IdentityToken: cred1.RefreshToken,
+				RegistryToken: cred1.AccessToken,
+			},
+			server2: {
+				Auth:          "dXNlcm5hbWVfMjpwYXNzd29yZF8y",
+				IdentityToken: "refresh_token_2",
+				RegistryToken: "access_token_2",
+			},
+		},
+		SomeField: "Some value",
+	}
+	jsonStr, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
 
-// 	ctx := context.Background()
-// 	if err := fs.Put(ctx, reg1, cred1); err != nil {
-// 		panic(err)
-// 	}
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+	// test get
+	got, err := fs.Get(ctx, server1)
+	if err != nil {
+		t.Fatalf("FileStore.Get() error = %v", err)
+	}
+	if want := cred1; !reflect.DeepEqual(got, want) {
+		t.Errorf("FileStore.Get(%s) = %v, want %v", server1, got, want)
+	}
+	got, err = fs.Get(ctx, server2)
+	if err != nil {
+		t.Fatalf("FileStore.Get() error = %v", err)
+	}
+	if want := cred2; !reflect.DeepEqual(got, want) {
+		t.Errorf("FileStore.Get(%s) = %v, want %v", server2, got, want)
+	}
 
-// 	reg2 := "test2.test.com"
-// 	cred2 := auth.Credential{
-// 		Username:     "username2",
-// 		Password:     "password2",
-// 		RefreshToken: "refresh_token2",
-// 		AccessToken:  "access_token2",
-// 	}
-// 	if err := fs.Put(ctx, reg2, cred2); err != nil {
-// 		panic(err)
-// 	}
+	// test delete
+	if err := fs.Delete(ctx, server1); err != nil {
+		t.Fatalf("FileStore.Delete() error = %v", err)
+	}
 
-// 	if err := fs.Delete(ctx, reg1); err != nil {
-// 		panic(err)
-// 	}
-// }
+	// verify config file
+	configFile, err := os.Open(configPath)
+	if err != nil {
+		t.Fatalf("failed to open config file: %v", err)
+	}
+	defer configFile.Close()
+	var gotCfg config
+	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
+		t.Fatalf("failed to decode config file: %v", err)
+	}
+	wantCfg := config{
+		AuthConfigs: map[string]authConfig{
+			server2: cfg.AuthConfigs[server2],
+		},
+		SomeField: cfg.SomeField,
+	}
+	if !reflect.DeepEqual(gotCfg, wantCfg) {
+		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
+	}
+
+	// test get again
+	got, err = fs.Get(ctx, server1)
+	if err != nil {
+		t.Fatalf("FileStore.Get() error = %v", err)
+	}
+	if want := auth.EmptyCredential; !reflect.DeepEqual(got, want) {
+		t.Errorf("FileStore.Get(%s) = %v, want %v", server1, got, want)
+	}
+	got, err = fs.Get(ctx, server2)
+	if err != nil {
+		t.Fatalf("FileStore.Get() error = %v", err)
+	}
+	if want := cred2; !reflect.DeepEqual(got, want) {
+		t.Errorf("FileStore.Get(%s) = %v, want %v", server2, got, want)
+	}
+}
+
+func TestFileStore_Delete_RecordNotExist(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+
+	server := "test.example.com"
+	// test delete
+	if err := fs.Delete(ctx, server); err != nil {
+		t.Fatalf("FileStore.Delete() error = %v", err)
+	}
+}
+
+func Test_encodeAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		password string
+		want     string
+	}{
+		{
+			name:     "Username and password",
+			username: "username",
+			password: "password",
+			want:     "dXNlcm5hbWU6cGFzc3dvcmQ=",
+		},
+		{
+			name:     "Empty username",
+			username: "username",
+			password: "",
+			want:     "dXNlcm5hbWU6",
+		},
+		{
+			name:     "Empty password",
+			username: "",
+			password: "password",
+			want:     "OnBhc3N3b3Jk",
+		},
+		{
+			name:     "Empty username and empty password",
+			username: "",
+			password: "",
+			want:     "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := encodeAuth(tt.username, tt.password); got != tt.want {
+				t.Errorf("encodeAuth() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_decodeAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		authStr  string
+		username string
+		password string
+		wantErr  error
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotUsername, gotPassword, err := decodeAuth(tt.authStr)
+			if errors.Is(err, tt.wantErr) {
+				t.Errorf("decodeAuth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotUsername != tt.username {
+				t.Errorf("decodeAuth() got = %v, want %v", gotUsername, tt.username)
+			}
+			if gotPassword != tt.password {
+				t.Errorf("decodeAuth() got1 = %v, want %v", gotPassword, tt.password)
+			}
+		})
+	}
+}

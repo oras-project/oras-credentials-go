@@ -107,8 +107,8 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 
 	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
-		// TODO: no ops?
-		return ErrInvalidFormat
+		// no ops
+		return nil
 	}
 	if _, ok = authsMap[serverAddress]; !ok {
 		// no ops
