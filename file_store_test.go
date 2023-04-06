@@ -183,7 +183,7 @@ func TestFileStore_Get_InvalidConfig(t *testing.T) {
 			name:          "Invalid auth encode",
 			serverAddress: "registry1.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidFormat,
+			wantErr:       ErrInvalidConfigFormat,
 		},
 		{
 			name:          "Invalid auths format",

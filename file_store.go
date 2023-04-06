@@ -34,6 +34,8 @@ import (
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
 type FileStore struct {
+	// DisableSave disable saving credentials in plain text.
+	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
 	DisableSave   bool
 	configPath    string
 	content       map[string]interface{}
@@ -41,16 +43,19 @@ type FileStore struct {
 }
 
 const (
-	ConfigFieldAuthConfigs   = "auths"
-	ConfigFieldUsername      = "username"
-	ConfigFieldPassword      = "password"
-	ConfigFieldBasicAuth     = "auth"
-	ConfigFieldIdentityToken = "identitytoken"
-	ConfigfieldRegistryToken = "registrytoken"
+	configFieldAuthConfigs   = "auths"
+	configFieldUsername      = "username"
+	configFieldPassword      = "password"
+	configFieldBasicAuth     = "auth"
+	configFieldIdentityToken = "identitytoken"
+	configFieldRegistryToken = "registrytoken"
 )
 
 var (
-	ErrInvalidFormat         = errors.New("invalid format")
+	// ErrInvalidConfigFormat is returned when the config format is invalid.
+	ErrInvalidConfigFormat = errors.New("invalid config format")
+	// ErrPlainTextSaveDisabled is returned by Put() when DisableSave is set
+	// to true.
 	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
 
@@ -117,7 +122,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 		// override username and password
 		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
 		if err != nil {
-			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
+			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
 		}
 	}
 	return cred, nil
@@ -146,7 +151,7 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 		// no ops if the config file does not exist
 		return nil
 	}
-	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
+	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		// no ops
 		return nil
@@ -158,13 +163,13 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 
 	// update data
 	delete(authsMap, serverAddress)
-	fs.content[ConfigFieldAuthConfigs] = authsMap
+	fs.content[configFieldAuthConfigs] = authsMap
 	return fs.saveFile()
 }
 
 // getAuthConfig reads the config and returns authConfig for serverAddress.
 func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, bool) {
-	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
+	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		return authConfig{}, false
 	}
@@ -176,15 +181,15 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, bool) {
 	var authCfg authConfig
 	for k, v := range authConfigObj {
 		switch k {
-		case ConfigFieldUsername:
+		case configFieldUsername:
 			authCfg.Username, _ = v.(string)
-		case ConfigFieldPassword:
+		case configFieldPassword:
 			authCfg.Password, _ = v.(string)
-		case ConfigFieldBasicAuth:
+		case configFieldBasicAuth:
 			authCfg.Auth, _ = v.(string)
-		case ConfigFieldIdentityToken:
+		case configFieldIdentityToken:
 			authCfg.IdentityToken, _ = v.(string)
-		case ConfigfieldRegistryToken:
+		case configFieldRegistryToken:
 			authCfg.RegistryToken, _ = v.(string)
 		}
 	}
@@ -193,7 +198,7 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, bool) {
 
 // updateAuths updates the Auths field of fs.content based on cred.
 func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
-	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
+	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		authsMap = make(map[string]interface{})
 	}
@@ -201,15 +206,15 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	if !ok {
 		authCfg = make(map[string]interface{})
 	}
-	authCfg[ConfigFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
-	authCfg[ConfigFieldUsername] = ""
-	authCfg[ConfigFieldPassword] = ""
-	authCfg[ConfigFieldIdentityToken] = cred.RefreshToken
-	authCfg[ConfigfieldRegistryToken] = cred.AccessToken
+	authCfg[configFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
+	authCfg[configFieldUsername] = ""
+	authCfg[configFieldPassword] = ""
+	authCfg[configFieldIdentityToken] = cred.RefreshToken
+	authCfg[configFieldRegistryToken] = cred.AccessToken
 
 	// update data
 	authsMap[serverAddress] = authCfg
-	fs.content[ConfigFieldAuthConfigs] = authsMap
+	fs.content[configFieldAuthConfigs] = authsMap
 }
 
 // saveFile saves fs.content into fs.configPath.
