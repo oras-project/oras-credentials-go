@@ -1,17 +1,33 @@
+/*
+Copyright The ORAS Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package credentials
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/oras-project/oras-credentials-go/internal/ioutils"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -65,6 +81,14 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	}
 	defer configFile.Close()
 
+	fi, err := configFile.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat config file at %s: %w", configPath, err)
+	}
+	if fi.IsDir() {
+		return nil, fmt.Errorf("%s: configPath cannot be a directory", configPath)
+	}
+
 	// decode config content if the config file exists
 	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
 		return nil, fmt.Errorf("failed to decode config file at %s: %w", configPath, err)
@@ -100,7 +124,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 }
 
 // Put saves credentials into the store for the given server address.
-// Returns ErrPlainTextSaveDisabled if s.DisableSave is set to true.
+// Returns ErrPlainTextSaveDisabled if fs.DisableSave is set to true.
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	if fs.DisableSave {
 		return ErrPlainTextSaveDisabled
@@ -118,7 +142,7 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	fs.contentRWLock.Lock()
 	defer fs.contentRWLock.Unlock()
 
-	if _, err := os.Stat(fs.configPath); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(fs.configPath); os.IsNotExist(err) {
 		// no ops if the config file does not exist
 		return nil
 	}
@@ -188,20 +212,33 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	fs.content[ConfigFieldAuthConfigs] = authsMap
 }
 
+// saveFile saves fs.content into fs.configPath.
 func (fs *FileStore) saveFile() error {
-	// TODO: save to temp and copy
-	// TODO: handle symlink
-	// TODO: handle permissions
 	jsonData, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
+
 	dir := filepath.Dir(fs.configPath)
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return fmt.Errorf("failed to make directory: %w", err)
 	}
-	if err = ioutil.WriteFile(fs.configPath, jsonData, 0666); err != nil {
-		return fmt.Errorf("failed to save credentials: %w", err)
+	ingest, err := ioutils.Ingest(bytes.NewReader(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to save config file: %w", err)
+	}
+
+	// handle symlink
+	targetPath := fs.configPath
+	if link, err := os.Readlink(fs.configPath); err == nil {
+		targetPath = link
+	}
+	// copy file with original ownership and permissions
+	ioutils.CopyFilePermissions(targetPath, ingest)
+	if err := os.Rename(ingest, targetPath); err != nil {
+		// clean up the ingest file
+		os.Remove(ingest)
+		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
 }
