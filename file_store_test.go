@@ -672,7 +672,6 @@ func TestFileStore_Delete_NotExistRecord(t *testing.T) {
 	}
 }
 
-// TODO: verify config does not exist
 func TestFileStore_Delete_NotExistConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
@@ -687,6 +686,12 @@ func TestFileStore_Delete_NotExistConfig(t *testing.T) {
 	// test delete
 	if err := fs.Delete(ctx, server); err != nil {
 		t.Fatalf("FileStore.Delete() error = %v", err)
+	}
+
+	// verify config file is not created
+	_, err = os.Stat(configPath)
+	if wantErr := os.ErrNotExist; !errors.Is(err, wantErr) {
+		t.Errorf("Stat(%s) error = %v, wantErr %v", configPath, err, wantErr)
 	}
 }
 

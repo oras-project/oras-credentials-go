@@ -118,6 +118,10 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	fs.contentRWLock.Lock()
 	defer fs.contentRWLock.Unlock()
 
+	if _, err := os.Stat(fs.configPath); errors.Is(err, os.ErrNotExist) {
+		// no ops if the config file does not exist
+		return nil
+	}
 	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		// no ops
@@ -131,7 +135,6 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	// update data
 	delete(authsMap, serverAddress)
 	fs.content[ConfigFieldAuthConfigs] = authsMap
-	// TODO: create config or not if not exist?
 	return fs.saveFile()
 }
 
