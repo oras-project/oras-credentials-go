@@ -40,17 +40,17 @@ var (
 	errCommandExited = fmt.Errorf("exited with error")
 )
 
-// nativeStoreTestCommand implements the Program interface for testing purpose.
+// testCommand implements the Program interface for testing purpose.
 // It simulates interactions between the docker client and a remote
 // credentials helper.
-type nativeStoreTestCommand struct {
+type testCommand struct {
 	arg   string
 	input io.Reader
 }
 
 // Output returns responses from the remote credentials helper.
 // It mocks those responses based in the input in the mock.
-func (m *nativeStoreTestCommand) Output() ([]byte, error) {
+func (m *testCommand) Output() ([]byte, error) {
 	in, err := io.ReadAll(m.input)
 	if err != nil {
 		return nil, err
@@ -90,12 +90,12 @@ func (m *nativeStoreTestCommand) Output() ([]byte, error) {
 }
 
 // Input sets the input to send to a remote credentials helper.
-func (m *nativeStoreTestCommand) Input(in io.Reader) {
+func (m *testCommand) Input(in io.Reader) {
 	m.input = in
 }
 
-func nativeStoreTestCommandFn(args ...string) client.Program {
-	return &nativeStoreTestCommand{
+func testCommandFn(args ...string) client.Program {
+	return &testCommand{
 		arg: args[0],
 	}
 }
@@ -109,7 +109,7 @@ func TestNativeStore_interface(t *testing.T) {
 
 func TestNativeStore_basicAuth(t *testing.T) {
 	ns := &NativeStore{
-		programFunc: nativeStoreTestCommandFn,
+		programFunc: testCommandFn,
 	}
 	// Put
 	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
@@ -136,7 +136,7 @@ func TestNativeStore_basicAuth(t *testing.T) {
 
 func TestNativeStore_refreshToken(t *testing.T) {
 	ns := &NativeStore{
-		programFunc: nativeStoreTestCommandFn,
+		programFunc: testCommandFn,
 	}
 	// Put
 	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})

@@ -17,65 +17,30 @@ package credentials
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
-	"github.com/docker/docker-credential-helpers/client"
-	"github.com/docker/docker-credential-helpers/credentials"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 var loginTestHostURL string
 
-// loginTestCommand implements the Program interface for testing purpose.
-// It simulates interactions between the docker client and a remote
-// credentials helper.
-type loginTestCommand struct {
-	arg   string
-	input io.Reader
+// testStore implements the Store interface, used for testing purpose.
+type testStore struct{}
+
+func (t *testStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
+	return auth.Credential{}, nil
 }
 
-// Output returns responses from the remote credentials helper.
-// It mocks those responses based in the input in the mock.
-func (m *loginTestCommand) Output() ([]byte, error) {
-	in, err := io.ReadAll(m.input)
-	if err != nil {
-		return nil, err
-	}
-	inS := string(in)
-	switch m.arg {
-	case "store":
-		var c credentials.Credentials
-		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
-		if err != nil {
-			return []byte("program failed"), errCommandExited
-		}
-		switch c.ServerURL {
-		case loginTestHostURL:
-			return nil, nil
-		default:
-			return []byte("program failed"), errCommandExited
-		}
-	}
-	return []byte(fmt.Sprintf("unknown argument %q with %q", m.arg, inS)), errCommandExited
+func (t *testStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
+	return nil
 }
 
-// Input sets the input to send to a remote credentials helper.
-func (m *loginTestCommand) Input(in io.Reader) {
-	m.input = in
-}
-
-func loginTestCommandFn(args ...string) client.Program {
-	return &loginTestCommand{
-		arg: args[0],
-	}
+func (t *testStore) Delete(ctx context.Context, serverAddress string) error {
+	return nil
 }
 
 func TestLogin(t *testing.T) {
@@ -91,9 +56,7 @@ func TestLogin(t *testing.T) {
 	}
 	reg.PlainHTTP = true
 	// create a test native store
-	ns := &NativeStore{
-		programFunc: loginTestCommandFn,
-	}
+	ns := &testStore{}
 	tests := []struct {
 		name     string
 		ctx      context.Context

@@ -23,6 +23,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// Login provides the login functionality with the given credentials.
 func Login(ctx context.Context, store Store, registry remote.Registry, cred auth.Credential) error {
 	if err := registry.Ping(ctx); err != nil {
 		return fmt.Errorf("unable to connect to the registry: %v", err)
