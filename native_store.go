@@ -42,7 +42,7 @@ func NewNativeStore(helperSuffix string) Store {
 	}
 }
 
-// Get retrieves credentials from the store for the given server
+// Get retrieves credentials from the store for the given server.
 func (ns *NativeStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
 	dockerCred, err := client.Get(ns.programFunc, serverAddress)
@@ -63,7 +63,7 @@ func (ns *NativeStore) Get(_ context.Context, serverAddress string) (auth.Creden
 	return cred, nil
 }
 
-// Put saves credentials into the store
+// Put saves credentials into the store.
 func (ns *NativeStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	dockerCred := &credentials.Credentials{
 		ServerURL: serverAddress,
@@ -77,7 +77,7 @@ func (ns *NativeStore) Put(_ context.Context, serverAddress string, cred auth.Cr
 	return client.Store(ns.programFunc, dockerCred)
 }
 
-// Delete removes credentials from the store for the given server
+// Delete removes credentials from the store for the given server.
 func (ns *NativeStore) Delete(_ context.Context, serverAddress string) error {
 	return client.Erase(ns.programFunc, serverAddress)
 }
