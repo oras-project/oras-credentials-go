@@ -18,10 +18,10 @@ import (
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
 type FileStore struct {
-	DisableSave bool
-	configPath  string
-	data        map[string]interface{}
-	dataLock    sync.RWMutex
+	DisableSave   bool
+	configPath    string
+	content       map[string]interface{}
+	contentRWLock sync.RWMutex
 }
 
 const (
@@ -38,12 +38,12 @@ var (
 	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
 
-// TODO: parse username and password
 // authConfig contains authorization information for connecting to a Registry
 type authConfig struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 	Auth     string `json:"auth,omitempty"`
+
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
@@ -57,30 +57,31 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	configFile, err := os.Open(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fs.data = make(map[string]interface{})
+			// init content map if the content file does not exist
+			fs.content = make(map[string]interface{})
 			return fs, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
 	}
 	defer configFile.Close()
 
-	jsonObj, err := ioutil.ReadAll(configFile)
-	if err != nil {
-		return nil, err
+	// decode config content if the config file exists
+	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
+		return nil, fmt.Errorf("failed to decode config file at %s: %w", configPath, err)
 	}
-	if err = json.Unmarshal(jsonObj, &fs.data); err != nil {
-		return nil, err
-	}
-
 	return fs, nil
 }
 
-// Get retrieves credentials from the store for the given server
+// Get retrieves credentials from the store for the given server address.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	fs.dataLock.RLock()
-	defer fs.dataLock.RUnlock()
+	fs.contentRWLock.RLock()
+	defer fs.contentRWLock.RUnlock()
 
-	authCfg := fs.getAuthConfig(serverAddress)
+	authCfg, ok := fs.getAuthConfig(serverAddress)
+	if !ok {
+		return auth.EmptyCredential, nil
+	}
+
 	cred := auth.Credential{
 		Username:     authCfg.Username,
 		Password:     authCfg.Password,
@@ -89,6 +90,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	}
 	if authCfg.Auth != "" {
 		var err error
+		// override username and password
 		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
 		if err != nil {
 			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidFormat, err)
@@ -97,25 +99,26 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	return cred, nil
 }
 
-// Put saves credentials into the store
+// Put saves credentials into the store for the given server address.
+// Returns ErrPlainTextSaveDisabled if s.DisableSave is set to true.
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	if fs.DisableSave {
 		return ErrPlainTextSaveDisabled
 	}
 
-	fs.dataLock.Lock()
-	defer fs.dataLock.Unlock()
+	fs.contentRWLock.Lock()
+	defer fs.contentRWLock.Unlock()
 
 	fs.updateAuths(serverAddress, cred)
 	return fs.saveFile()
 }
 
-// Delete removes credentials from the store for the given server
+// Delete removes credentials from the store for the given server address.
 func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
-	fs.dataLock.Lock()
-	defer fs.dataLock.Unlock()
+	fs.contentRWLock.Lock()
+	defer fs.contentRWLock.Unlock()
 
-	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
+	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
 		// no ops
 		return nil
@@ -127,44 +130,20 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 
 	// update data
 	delete(authsMap, serverAddress)
-	fs.data[ConfigFieldAuthConfigs] = authsMap
+	fs.content[ConfigFieldAuthConfigs] = authsMap
 	// TODO: create config or not if not exist?
 	return fs.saveFile()
 }
 
-func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
-	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
+// getAuthConfig reads the config and returns authConfig for serverAddress.
+func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, bool) {
+	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
 	if !ok {
-		authsMap = make(map[string]interface{})
+		return authConfig{}, false
 	}
 	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
 	if !ok {
-		authConfigObj = make(map[string]interface{})
-	}
-	// TODO: patch update or overwrite?
-	if cred.Username != "" || cred.Password != "" {
-		authConfigObj[ConfigFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
-	}
-	if cred.RefreshToken != "" {
-		authConfigObj[ConfigFieldIdentityToken] = cred.RefreshToken
-	}
-	if cred.AccessToken != "" {
-		authConfigObj[ConfigfieldRegistryToken] = cred.AccessToken
-	}
-
-	// update data
-	authsMap[serverAddress] = authConfigObj
-	fs.data[ConfigFieldAuthConfigs] = authsMap
-}
-
-func (fs *FileStore) getAuthConfig(serverAddress string) authConfig {
-	authsMap, ok := fs.data[ConfigFieldAuthConfigs].(map[string]interface{})
-	if !ok {
-		return authConfig{}
-	}
-	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
-	if !ok {
-		return authConfig{}
+		return authConfig{}, false
 	}
 
 	var authCfg authConfig
@@ -182,14 +161,35 @@ func (fs *FileStore) getAuthConfig(serverAddress string) authConfig {
 			authCfg.RegistryToken, _ = v.(string)
 		}
 	}
-	return authCfg
+	return authCfg, true
+}
+
+// updateAuths updates the Auths field of fs.content based on cred.
+func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
+	authsMap, ok := fs.content[ConfigFieldAuthConfigs].(map[string]interface{})
+	if !ok {
+		authsMap = make(map[string]interface{})
+	}
+	authCfg, ok := authsMap[serverAddress].(map[string]interface{})
+	if !ok {
+		authCfg = make(map[string]interface{})
+	}
+	authCfg[ConfigFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
+	authCfg[ConfigFieldUsername] = ""
+	authCfg[ConfigFieldPassword] = ""
+	authCfg[ConfigFieldIdentityToken] = cred.RefreshToken
+	authCfg[ConfigfieldRegistryToken] = cred.AccessToken
+
+	// update data
+	authsMap[serverAddress] = authCfg
+	fs.content[ConfigFieldAuthConfigs] = authsMap
 }
 
 func (fs *FileStore) saveFile() error {
 	// TODO: save to temp and copy
 	// TODO: handle symlink
 	// TODO: handle permissions
-	jsonData, err := json.MarshalIndent(fs.data, "", "\t")
+	jsonData, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
@@ -203,7 +203,7 @@ func (fs *FileStore) saveFile() error {
 	return nil
 }
 
-// encodeAuth creates a base64 encoded string to containing authorization information
+// encodeAuth base64-encodes username and password into base64(username:password).
 func encodeAuth(username, password string) string {
 	if username == "" && password == "" {
 		return ""
@@ -216,26 +216,26 @@ func encodeAuth(username, password string) string {
 	return string(encoded)
 }
 
-// decodeAuth decodes a base64 encoded string and returns username and password
-func decodeAuth(authStr string) (string, string, error) {
+// decodeAuth decodes a base64 encoded string and returns username and password.
+func decodeAuth(authStr string) (username string, password string, err error) {
 	if authStr == "" {
 		return "", "", nil
 	}
 
-	decLen := base64.StdEncoding.DecodedLen(len(authStr))
-	decoded := make([]byte, decLen)
+	decodedLen := base64.StdEncoding.DecodedLen(len(authStr))
+	decoded := make([]byte, decodedLen)
 	authByte := []byte(authStr)
 	n, err := base64.StdEncoding.Decode(decoded, authByte)
 	if err != nil {
 		return "", "", err
 	}
-	if n > decLen {
-		return "", "", errors.New("something went wrong decoding auth config")
+	if n > decodedLen {
+		return "", "", errors.New("size mismatch")
 	}
 	arr := strings.SplitN(string(decoded), ":", 2)
 	if len(arr) != 2 {
-		return "", "", errors.New("invalid auth configuration file")
+		return "", "", errors.New("auth does not conform username:password format")
 	}
-	password := strings.Trim(arr[1], "\x00")
+	password = strings.Trim(arr[1], "\x00")
 	return arr[0], password, nil
 }

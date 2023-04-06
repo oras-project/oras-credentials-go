@@ -12,6 +12,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// TODO: test remain other fields in auth
 func TestFileStore_Get_ValidConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/valid_config.json")
@@ -103,6 +104,7 @@ func TestFileStore_Get_ValidConfig(t *testing.T) {
 	}
 }
 
+// TODO: test non-string
 func TestFileStore_Get_InvalidConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/invalid_config.json")
@@ -177,7 +179,7 @@ func TestFileStore_Get_EmptyConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Get_ConfigNotExist(t *testing.T) {
+func TestFileStore_Get_NotExistConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("whatever")
 	if err != nil {
@@ -365,7 +367,7 @@ func TestFileStore_Put_ExistingConfig(t *testing.T) {
 	}
 }
 
-func TestStore_Put_DisablePlainText(t *testing.T) {
+func TestStore_Put_DisableSave(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -499,6 +501,7 @@ func TestFileStore_Delete(t *testing.T) {
 	}
 }
 
+// TODO: test delete from not exist config
 func TestFileStore_Delete_RecordNotExist(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
