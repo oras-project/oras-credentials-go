@@ -832,6 +832,13 @@ func Test_decodeAuth(t *testing.T) {
 			password: "",
 			wantErr:  true,
 		},
+		{
+			name:     "Empty string",
+			authStr:  "",
+			username: "",
+			password: "",
+			wantErr:  false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
