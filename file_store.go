@@ -226,7 +226,7 @@ func (fs *FileStore) saveFile() error {
 
 	dir := filepath.Dir(fs.configPath)
 	if err := os.MkdirAll(dir, 0777); err != nil {
-		return fmt.Errorf("failed to make directory: %w", err)
+		return fmt.Errorf("failed to make directory %s: %w", dir, err)
 	}
 	ingest, err := ioutils.Ingest(bytes.NewReader(jsonData))
 	if err != nil {

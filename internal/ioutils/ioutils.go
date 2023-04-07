@@ -21,9 +21,10 @@ import (
 	"os"
 )
 
-// ingest write the content into a temporary ingest file.
+// Ingest writes content into a temporary ingest file with the file name format
+// "oras_credstore_randomString"
 func Ingest(content io.Reader) (path string, ingestErr error) {
-	tempFile, err := os.CreateTemp("", "")
+	tempFile, err := os.CreateTemp("", "oras_credstore_*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create ingest file: %w", err)
 	}

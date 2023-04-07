@@ -45,7 +45,7 @@ type testConfig struct {
 	AuthConfigs map[string]testAuthConfig `json:"auths"`
 }
 
-func TestNewFileStore_BadPath(t *testing.T) {
+func TestNewFileStore_badPath(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
@@ -75,7 +75,7 @@ func TestNewFileStore_BadPath(t *testing.T) {
 	}
 }
 
-func TestFileStore_Get_ValidConfig(t *testing.T) {
+func TestFileStore_Get_validConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/valid_config.json")
 	if err != nil {
@@ -166,7 +166,7 @@ func TestFileStore_Get_ValidConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Get_InvalidConfig(t *testing.T) {
+func TestFileStore_Get_invalidConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/invalid_config.json")
 	if err != nil {
@@ -212,7 +212,7 @@ func TestFileStore_Get_InvalidConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Get_EmptyConfig(t *testing.T) {
+func TestFileStore_Get_emptyConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/empty_config.json")
 	if err != nil {
@@ -246,7 +246,7 @@ func TestFileStore_Get_EmptyConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Get_NotExistConfig(t *testing.T) {
+func TestFileStore_Get_notExistConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("whatever")
 	if err != nil {
@@ -280,7 +280,7 @@ func TestFileStore_Get_NotExistConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Put_NotExistConfig(t *testing.T) {
+func TestFileStore_Put_notExistConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -337,7 +337,7 @@ func TestFileStore_Put_NotExistConfig(t *testing.T) {
 	}
 }
 
-func TestFileStore_Put_AddNew(t *testing.T) {
+func TestFileStore_Put_addNew(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -434,7 +434,7 @@ func TestFileStore_Put_AddNew(t *testing.T) {
 	}
 }
 
-func TestFileStore_Put_UpdateOld(t *testing.T) {
+func TestFileStore_Put_updateOld(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -508,7 +508,7 @@ func TestFileStore_Put_UpdateOld(t *testing.T) {
 	}
 }
 
-func TestStore_Put_DisableSave(t *testing.T) {
+func TestStore_Put_disableSave(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -638,7 +638,7 @@ func TestFileStore_Delete(t *testing.T) {
 	}
 }
 
-func TestFileStore_Delete_NotExistRecord(t *testing.T) {
+func TestFileStore_Delete_notExistRecord(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -717,7 +717,7 @@ func TestFileStore_Delete_NotExistRecord(t *testing.T) {
 	}
 }
 
-func TestFileStore_Delete_NotExistConfig(t *testing.T) {
+func TestFileStore_Delete_notExistConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
