@@ -26,8 +26,6 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-var loginTestHostURL string
-
 // testStore implements the Store interface, used for testing purpose.
 type testStore struct{}
 
@@ -47,15 +45,14 @@ func TestLogin(t *testing.T) {
 	// create a test registry
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer ts.Close()
-	host := ts.URL
-	uri, _ := url.Parse(host)
-	loginTestHostURL = uri.Host
-	reg, err := remote.NewRegistry(loginTestHostURL)
+	uri, _ := url.Parse(ts.URL)
+	reg, err := remote.NewRegistry(uri.Host)
 	if err != nil {
 		panic("cannot create test registry")
 	}
 	reg.PlainHTTP = true
-	// create a test native store
+
+	// create a test store
 	ns := &testStore{}
 	tests := []struct {
 		name     string
@@ -74,7 +71,7 @@ func TestLogin(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "login fails (nil context makes Ping fails)",
+			name:     "login fails (nil context makes remote.Ping fails)",
 			ctx:      nil,
 			store:    ns,
 			registry: *reg,
