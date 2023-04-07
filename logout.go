@@ -22,8 +22,7 @@ import (
 
 func Logout(ctx context.Context, store Store, registryName string) error {
 	if err := store.Delete(ctx, registryName); err != nil {
-		return err
+		return fmt.Errorf("unable to logout: %v", err)
 	}
-	fmt.Println("Logout Succeeded")
 	return nil
 }
