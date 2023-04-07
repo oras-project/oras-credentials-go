@@ -26,11 +26,10 @@ import (
 // Login provides the login functionality with the given credentials.
 func Login(ctx context.Context, store Store, registry remote.Registry, cred auth.Credential) error {
 	if err := registry.Ping(ctx); err != nil {
-		return fmt.Errorf("unable to connect to the registry: %v", err)
+		return fmt.Errorf("unable to login to the registry %s: %w", registry.Reference.Registry, err)
 	}
 	if err := store.Put(ctx, registry.Reference.Registry, cred); err != nil {
 		return fmt.Errorf("unable to store the credential: %v", err)
 	}
-	fmt.Println("Login Succeeded")
 	return nil
 }

@@ -48,7 +48,8 @@ func TestLogin(t *testing.T) {
 	uri, _ := url.Parse(ts.URL)
 	reg, err := remote.NewRegistry(uri.Host)
 	if err != nil {
-		panic("cannot create test registry")
+		t.Fatalf("cannot create test registry: %v", err)
+
 	}
 	reg.PlainHTTP = true
 
