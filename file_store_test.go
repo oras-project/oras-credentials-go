@@ -41,8 +41,8 @@ type testAuthConfig struct {
 }
 
 type testConfig struct {
-	SomeField   string                    `json:"some_field"`
-	AuthConfigs map[string]testAuthConfig `json:"auths"`
+	SomeConfigField int                       `json:"some_config_field"`
+	AuthConfigs     map[string]testAuthConfig `json:"auths"`
 }
 
 func TestNewFileStore_badPath(t *testing.T) {
@@ -377,13 +377,13 @@ func TestFileStore_Put_addNew(t *testing.T) {
 	cfg := testConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			server1: {
-				SomeAuthField: "foobar",
+				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred1.RefreshToken,
 				RegistryToken: cred1.AccessToken,
 			},
 		},
-		SomeField: "Some value",
+		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
 	if err != nil {
@@ -422,7 +422,7 @@ func TestFileStore_Put_addNew(t *testing.T) {
 	wantCfg := testConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			server1: {
-				SomeAuthField: "foobar",
+				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred1.RefreshToken,
 				RegistryToken: cred1.AccessToken,
@@ -433,7 +433,7 @@ func TestFileStore_Put_addNew(t *testing.T) {
 				RegistryToken: "access_token_2",
 			},
 		},
-		SomeField: cfg.SomeField,
+		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
 		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
@@ -467,13 +467,13 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	cfg := testConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			server: {
-				SomeAuthField: "foobar",
+				SomeAuthField: "whatever",
 				Username:      "foo",
 				Password:      "bar",
 				IdentityToken: "refresh_token",
 			},
 		},
-		SomeField: "Some value",
+		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
 	if err != nil {
@@ -510,12 +510,12 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	wantCfg := testConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			server: {
-				SomeAuthField: "foobar",
+				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				RegistryToken: "access_token",
 			},
 		},
-		SomeField: cfg.SomeField,
+		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
 		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
@@ -589,7 +589,7 @@ func TestFileStore_Delete(t *testing.T) {
 				RegistryToken: "access_token_2",
 			},
 		},
-		SomeField: "Some value",
+		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
 	if err != nil {
@@ -638,7 +638,7 @@ func TestFileStore_Delete(t *testing.T) {
 		AuthConfigs: map[string]testAuthConfig{
 			server2: cfg.AuthConfigs[server2],
 		},
-		SomeField: cfg.SomeField,
+		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
 		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
@@ -682,7 +682,7 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 				RegistryToken: cred.AccessToken,
 			},
 		},
-		SomeField: "Some value",
+		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
 	if err != nil {
@@ -724,7 +724,7 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 		AuthConfigs: map[string]testAuthConfig{
 			server: cfg.AuthConfigs[server],
 		},
-		SomeField: cfg.SomeField,
+		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
 		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
