@@ -96,7 +96,7 @@ func NewFileStore(configPath string) (*FileStore, error) {
 
 	// decode config content if the config file exists
 	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
-		return nil, fmt.Errorf("failed to decode config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
 	}
 	return fs, nil
 }

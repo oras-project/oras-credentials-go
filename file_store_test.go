@@ -75,6 +75,29 @@ func TestNewFileStore_badPath(t *testing.T) {
 	}
 }
 
+func TestNewFileStore_badFormat(t *testing.T) {
+	tests := []struct {
+		name       string
+		configPath string
+		wantErr    error
+	}{
+		{
+			name:       "Bad JSON format",
+			configPath: "testdata/bad_config",
+			wantErr:    ErrInvalidConfigFormat,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFileStore(tt.configPath)
+			if !errors.Is(err, ErrInvalidConfigFormat) {
+				t.Errorf("NewFileStore() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
+
 func TestFileStore_Get_validConfig(t *testing.T) {
 	ctx := context.Background()
 	fs, err := NewFileStore("testdata/valid_config.json")
