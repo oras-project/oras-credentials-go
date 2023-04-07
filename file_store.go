@@ -212,8 +212,26 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	authCfg[configFieldIdentityToken] = cred.RefreshToken
 	authCfg[configFieldRegistryToken] = cred.AccessToken
 
+	// omit empty fields
+	cleanAuthCfg := make(map[string]interface{})
+	for k, v := range authCfg {
+		switch k {
+		case configFieldBasicAuth,
+			configFieldUsername,
+			configFieldPassword,
+			configFieldIdentityToken,
+			configFieldRegistryToken:
+			if v != "" {
+				cleanAuthCfg[k] = v
+			}
+		default:
+			// copy any other fields
+			cleanAuthCfg[k] = v
+		}
+	}
+
 	// update data
-	authsMap[serverAddress] = authCfg
+	authsMap[serverAddress] = cleanAuthCfg
 	fs.content[configFieldAuthConfigs] = authsMap
 }
 
