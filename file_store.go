@@ -246,11 +246,11 @@ func (fs *FileStore) saveFile() error {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
 
-	dir := filepath.Dir(fs.configPath)
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return fmt.Errorf("failed to make directory %s: %w", dir, err)
+	configDir := filepath.Dir(fs.configPath)
+	if err := os.MkdirAll(configDir, 0777); err != nil {
+		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
 	}
-	ingest, err := ioutil.Ingest(bytes.NewReader(jsonData))
+	ingest, err := ioutil.Ingest(configDir, bytes.NewReader(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
