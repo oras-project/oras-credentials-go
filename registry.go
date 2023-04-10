@@ -30,7 +30,7 @@ func Login(ctx context.Context, store Store, registry remote.Registry, cred auth
 	}
 	hostname := mapHostname(registry.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
-		return fmt.Errorf("unable to store the credential: %v", err)
+		return fmt.Errorf("unable to store the credential for %s: %w", hostname, err)
 	}
 	return nil
 }

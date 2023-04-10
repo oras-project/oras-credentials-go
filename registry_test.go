@@ -53,12 +53,16 @@ func TestLogin(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer ts.Close()
 	uri, _ := url.Parse(ts.URL)
-	reg, err := remote.NewRegistry(uri.Host)
+	successReg, err := remote.NewRegistry(uri.Host)
 	if err != nil {
 		t.Fatalf("cannot create test registry: %v", err)
 
 	}
-	reg.PlainHTTP = true
+	successReg.PlainHTTP = true
+	failureReg, err := remote.NewRegistry("test.io")
+	if err != nil {
+		t.Fatalf("cannot create test registry: %v", err)
+	}
 
 	// create a test store
 	ns := &testStore{}
@@ -73,22 +77,26 @@ func TestLogin(t *testing.T) {
 		{
 			name:     "login succeeds",
 			ctx:      context.Background(),
-			registry: *reg,
+			registry: *successReg,
 			cred:     auth.Credential{Username: testUsername, Password: testPassword},
 			wantErr:  false,
 		},
 		{
 			name:     "login fails (nil context makes remote.Ping fails)",
 			ctx:      nil,
-			registry: *reg,
+			registry: *failureReg,
 			cred:     auth.Credential{Username: testUsername, Password: testPassword},
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := Login(tt.ctx, ns, tt.registry, tt.cred); (err != nil) != tt.wantErr {
+			err := Login(tt.ctx, ns, tt.registry, tt.cred)
+			if (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
 			}
 			if got := ns.storage[tt.registry.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
 				t.Errorf("Stored credential = %v, want %v", got, tt.cred)
