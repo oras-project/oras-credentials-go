@@ -90,8 +90,8 @@ func TestLogin(t *testing.T) {
 			if err := Login(tt.ctx, ns, tt.registry, tt.cred); (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(ns.storage[tt.registry.Reference.Registry], tt.cred) {
-				t.Fatalf("Incorrect credentials stored")
+			if got := ns.storage[tt.registry.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
+				t.Errorf("Stored credential = %v, want %v", got, tt.cred)
 			}
 		})
 	}
