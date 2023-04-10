@@ -27,7 +27,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/oras-project/oras-credentials-go/internal/ioutils"
+	"github.com/oras-project/oras-credentials-go/internal/ioutil"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -60,16 +60,20 @@ var (
 )
 
 // authConfig contains authorization information for connecting to a Registry
+// References:
+//   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L17-L45
+//   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/types/authconfig.go#L3-L22
 type authConfig struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Auth     string `json:"auth,omitempty"`
-
+	// Auth is a base64-encoded string of "{username}:{password}".
+	Auth string `json:"auth,omitempty"`
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
 	// RegistryToken is a bearer token to be sent to a registry
 	RegistryToken string `json:"registrytoken,omitempty"`
+
+	Username string `json:"username,omitempty"` // legacy field for compatibility
+	Password string `json:"password,omitempty"` // legacy field for compatibility
 }
 
 // NewFileStore creates a new file credentials store.
@@ -246,7 +250,7 @@ func (fs *FileStore) saveFile() error {
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return fmt.Errorf("failed to make directory %s: %w", dir, err)
 	}
-	ingest, err := ioutils.Ingest(bytes.NewReader(jsonData))
+	ingest, err := ioutil.Ingest(bytes.NewReader(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
@@ -257,7 +261,7 @@ func (fs *FileStore) saveFile() error {
 		targetPath = link
 	}
 	// copy file with original ownership and permissions
-	ioutils.CopyFilePermissions(targetPath, ingest)
+	ioutil.CopyFilePermissions(targetPath, ingest)
 	if err := os.Rename(ingest, targetPath); err != nil {
 		// clean up the ingest file
 		os.Remove(ingest)
