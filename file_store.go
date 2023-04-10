@@ -38,7 +38,7 @@ type FileStore struct {
 	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
 	DisableSave   bool
 	configPath    string
-	content       map[string]interface{}
+	content       map[string]json.RawMessage
 	contentRWLock sync.RWMutex
 }
 
@@ -83,7 +83,7 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// init content map if the content file does not exist
-			fs.content = make(map[string]interface{})
+			fs.content = make(map[string]json.RawMessage)
 			return fs, nil
 		}
 		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
@@ -110,9 +110,9 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	fs.contentRWLock.RLock()
 	defer fs.contentRWLock.RUnlock()
 
-	authCfg, ok := fs.getAuthConfig(serverAddress)
-	if !ok {
-		return auth.EmptyCredential, nil
+	authCfg, err := fs.getAuthConfig(serverAddress)
+	if err != nil {
+		return auth.EmptyCredential, fmt.Errorf("failed to decode credential: %w: %v", ErrInvalidConfigFormat, err)
 	}
 
 	cred := auth.Credential{
@@ -142,7 +142,9 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 	fs.contentRWLock.Lock()
 	defer fs.contentRWLock.Unlock()
 
-	fs.updateAuths(serverAddress, cred)
+	if err := fs.updateAuths(serverAddress, cred); err != nil {
+		return fmt.Errorf("failed to update credential: %w: %v", ErrInvalidConfigFormat, err)
+	}
 	return fs.saveFile()
 }
 
@@ -155,61 +157,67 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 		// no ops if the config file does not exist
 		return nil
 	}
-	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
+	authsBytes, ok := fs.content[configFieldAuthConfigs]
 	if !ok {
 		// no ops
 		return nil
 	}
-	if _, ok = authsMap[serverAddress]; !ok {
+	var auths map[string]json.RawMessage
+	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+		return fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
+	}
+	if _, ok = auths[serverAddress]; !ok {
 		// no ops
 		return nil
 	}
 
 	// update data
-	delete(authsMap, serverAddress)
-	fs.content[configFieldAuthConfigs] = authsMap
+	delete(auths, serverAddress)
+	var err error
+	authsBytes, err = json.Marshal(auths)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w: %v", ErrInvalidConfigFormat, err)
+	}
+	fs.content[configFieldAuthConfigs] = authsBytes
 	return fs.saveFile()
 }
 
 // getAuthConfig reads the config and returns authConfig for serverAddress.
-func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, bool) {
-	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
+func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
+	authsBytes, ok := fs.content[configFieldAuthConfigs]
 	if !ok {
-		return authConfig{}, false
+		return authConfig{}, nil
 	}
-	authConfigObj, ok := authsMap[serverAddress].(map[string]interface{})
-	if !ok {
-		return authConfig{}, false
+	var auths map[string]json.RawMessage
+	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+		return authConfig{}, fmt.Errorf("failed to unmarshal auths: %w", err)
 	}
 
-	var authCfg authConfig
-	for k, v := range authConfigObj {
-		switch k {
-		case configFieldUsername:
-			authCfg.Username, _ = v.(string)
-		case configFieldPassword:
-			authCfg.Password, _ = v.(string)
-		case configFieldBasicAuth:
-			authCfg.Auth, _ = v.(string)
-		case configFieldIdentityToken:
-			authCfg.IdentityToken, _ = v.(string)
-		case configFieldRegistryToken:
-			authCfg.RegistryToken, _ = v.(string)
-		}
+	authCfgBytes, ok := auths[serverAddress]
+	if !ok {
+		return authConfig{}, nil
 	}
-	return authCfg, true
+	var authCfg authConfig
+	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
+		return authConfig{}, fmt.Errorf("failed to unmarshal auth config: %w", err)
+	}
+	return authCfg, nil
 }
 
 // updateAuths updates the Auths field of fs.content based on cred.
-func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
-	authsMap, ok := fs.content[configFieldAuthConfigs].(map[string]interface{})
-	if !ok {
-		authsMap = make(map[string]interface{})
+func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) error {
+	authsBytes := fs.content[configFieldAuthConfigs]
+	var auths map[string]json.RawMessage
+	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+		auths = make(map[string]json.RawMessage)
 	}
-	authCfg, ok := authsMap[serverAddress].(map[string]interface{})
-	if !ok {
-		authCfg = make(map[string]interface{})
+
+	authCfgBytes := auths[serverAddress]
+	var authCfg map[string]any
+	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
+		authCfg = make(map[string]any)
 	}
+
 	authCfg[configFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
 	authCfg[configFieldUsername] = ""
 	authCfg[configFieldPassword] = ""
@@ -217,7 +225,7 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	authCfg[configFieldRegistryToken] = cred.AccessToken
 
 	// omit empty fields
-	cleanAuthCfg := make(map[string]interface{})
+	cleanAuthCfg := make(map[string]any)
 	for k, v := range authCfg {
 		switch k {
 		case configFieldBasicAuth,
@@ -235,8 +243,18 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) {
 	}
 
 	// update data
-	authsMap[serverAddress] = cleanAuthCfg
-	fs.content[configFieldAuthConfigs] = authsMap
+	var err error
+	authCfgBytes, err = json.Marshal(cleanAuthCfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal auth config: %w", err)
+	}
+	auths[serverAddress] = authCfgBytes
+	authsBytes, err = json.Marshal(auths)
+	if err != nil {
+		return fmt.Errorf("failed to marshal auths: %w", err)
+	}
+	fs.content[configFieldAuthConfigs] = authsBytes
+	return nil
 }
 
 // saveFile saves fs.content into fs.configPath.

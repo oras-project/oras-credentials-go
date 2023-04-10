@@ -212,13 +212,13 @@ func TestFileStore_Get_invalidConfig(t *testing.T) {
 			name:          "Invalid auths format",
 			serverAddress: "registry2.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       nil,
+			wantErr:       ErrInvalidConfigFormat,
 		},
 		{
 			name:          "Invalid type",
 			serverAddress: "registry3.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       nil,
+			wantErr:       ErrInvalidConfigFormat,
 		},
 	}
 	for _, tt := range tests {
