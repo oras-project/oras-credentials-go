@@ -17,6 +17,7 @@ package credentials
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -50,26 +51,27 @@ func (t *testStore) Delete(ctx context.Context, serverAddress string) error {
 
 func TestLogin(t *testing.T) {
 	// create a test registry
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wantedAuthHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(testUsername+":"+testPassword))
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != wantedAuthHeader {
+			w.Header().Set("Www-Authenticate", `Basic realm="Test Server"`)
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}))
 	defer ts.Close()
 	uri, _ := url.Parse(ts.URL)
-	successReg, err := remote.NewRegistry(uri.Host)
-	if err != nil {
-		t.Fatalf("cannot create test registry: %v", err)
-
-	}
-	successReg.PlainHTTP = true
-	failureReg, err := remote.NewRegistry("test.io")
+	reg, err := remote.NewRegistry(uri.Host)
 	if err != nil {
 		t.Fatalf("cannot create test registry: %v", err)
 	}
+	reg.PlainHTTP = true
 
 	// create a test store
 	ns := &testStore{}
 	tests := []struct {
 		name     string
 		ctx      context.Context
-		store    Store
 		registry remote.Registry
 		cred     auth.Credential
 		wantErr  bool
@@ -77,14 +79,21 @@ func TestLogin(t *testing.T) {
 		{
 			name:     "login succeeds",
 			ctx:      context.Background(),
-			registry: *successReg,
+			registry: *reg,
 			cred:     auth.Credential{Username: testUsername, Password: testPassword},
 			wantErr:  false,
 		},
+		// {
+		// 	name:     "login fails (incorrect password)",
+		// 	ctx:      context.Background(),
+		// 	registry: *successReg,
+		// 	cred:     auth.Credential{Username: testUsername, Password: "whatever"},
+		// 	wantErr:  true,
+		// },
 		{
 			name:     "login fails (nil context makes remote.Ping fails)",
 			ctx:      nil,
-			registry: *failureReg,
+			registry: *reg,
 			cred:     auth.Credential{Username: testUsername, Password: testPassword},
 			wantErr:  true,
 		},
@@ -99,8 +108,9 @@ func TestLogin(t *testing.T) {
 				return
 			}
 			if got := ns.storage[tt.registry.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
-				t.Errorf("Stored credential = %v, want %v", got, tt.cred)
+				t.Fatalf("Stored credential = %v, want %v", got, tt.cred)
 			}
+			ns.Delete(tt.ctx, tt.registry.Reference.Registry)
 		})
 	}
 }
