@@ -271,6 +271,7 @@ func (fs *FileStore) saveFile() error {
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L215-L226
 func encodeAuth(username, password string) string {
 	if username == "" && password == "" {
 		return ""
@@ -284,6 +285,7 @@ func encodeAuth(username, password string) string {
 }
 
 // decodeAuth decodes a base64 encoded string and returns username and password.
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L228-L249
 func decodeAuth(authStr string) (username string, password string, err error) {
 	if authStr == "" {
 		return "", "", nil
