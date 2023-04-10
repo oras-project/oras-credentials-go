@@ -28,12 +28,19 @@ func Login(ctx context.Context, store Store, registry remote.Registry, cred auth
 	if err := registry.Ping(ctx); err != nil {
 		return fmt.Errorf("unable to login to the registry %s: %w", registry.Reference.Registry, err)
 	}
-	hostname := registry.Reference.Registry
-	if hostname == "docker.io" {
-		hostname = "https://index.docker.io/v1/"
-	}
+	hostname := mapHostname(registry.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
 		return fmt.Errorf("unable to store the credential: %v", err)
 	}
 	return nil
+}
+
+func mapHostname(hostname string) string {
+	// For a user case that login 'docker.io',
+	// According the the behavior of Docker CLI,
+	// credential should be added under key "https://index.docker.io/v1/"
+	if hostname == "docker.io" {
+		return "https://index.docker.io/v1/"
+	}
+	return hostname
 }

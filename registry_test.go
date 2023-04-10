@@ -96,3 +96,29 @@ func TestLogin(t *testing.T) {
 		})
 	}
 }
+
+func Test_mapHostname(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		want string
+	}{
+		{
+			"map docker.io to https://index.docker.io/v1/",
+			"docker.io",
+			"https://index.docker.io/v1/",
+		},
+		{
+			"do not map other host names",
+			"localhost:2333",
+			"localhost:2333",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mapHostname(tt.host); got != tt.want {
+				t.Errorf("mapHostname() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
