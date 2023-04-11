@@ -38,13 +38,17 @@ type FileStore struct {
 	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
 	DisableSave bool
 
+	// configPath is the path to the config file
 	configPath string
-	content    map[string]json.RawMessage
+	// content is the content of the config file
+	content map[string]json.RawMessage
+	// authsCache is a cache of the auths field of the config field
 	authsCache map[string]json.RawMessage
-	rwLock     sync.RWMutex
+	// rwLock is a read-write-lock
+	rwLock sync.RWMutex
 }
 
-const configFieldAuthConfigs = "auths"
+const configFieldAuths = "auths"
 
 var (
 	// ErrInvalidConfigFormat is returned when the config format is invalid.
@@ -77,7 +81,7 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	configFile, err := os.Open(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// init content map if the content file does not exist
+			// init content map and auths cache if the content file does not exist
 			fs.content = make(map[string]json.RawMessage)
 			fs.authsCache = make(map[string]json.RawMessage)
 			return fs, nil
@@ -91,20 +95,21 @@ func NewFileStore(configPath string) (*FileStore, error) {
 		return nil, fmt.Errorf("failed to stat config file at %s: %w", configPath, err)
 	}
 	if fi.IsDir() {
-		return nil, fmt.Errorf("%s: configPath cannot be a directory", configPath)
+		return nil, fmt.Errorf("configPath %s is a directory", configPath)
 	}
 
 	// decode config content if the config file exists
 	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
 		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
 	}
-	authsBytes, ok := fs.content[configFieldAuthConfigs]
+	authsBytes, ok := fs.content[configFieldAuths]
 	if !ok {
+		// init auths cache
 		fs.authsCache = make(map[string]json.RawMessage)
 		return fs, nil
 	}
 	if err := json.Unmarshal(authsBytes, &fs.authsCache); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
+		return nil, fmt.Errorf("failed to unmarshal auths field: %w: %v", ErrInvalidConfigFormat, err)
 	}
 	return fs, nil
 }
@@ -120,7 +125,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	}
 	var authCfg authConfig
 	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
-		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
+		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auth field: %w: %v", ErrInvalidConfigFormat, err)
 	}
 	return authConfigToCredential(authCfg)
 }
@@ -137,7 +142,7 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 
 	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
 	if err != nil {
-		return fmt.Errorf("failed to marshal auth config: %w", err)
+		return fmt.Errorf("failed to marshal auth field: %w", err)
 	}
 	fs.authsCache[serverAddress] = authCfgBytes
 	return fs.saveFile()
@@ -149,7 +154,7 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	defer fs.rwLock.Unlock()
 
 	if _, err := os.Stat(fs.configPath); os.IsNotExist(err) {
-		// no ops if the config file does not exist
+		// no ops if the config file does not exist yet
 		return nil
 	}
 	if _, ok := fs.authsCache[serverAddress]; !ok {
@@ -166,24 +171,23 @@ func (fs *FileStore) saveFile() error {
 	if len(fs.authsCache) > 0 {
 		authsBytes, err := json.Marshal(fs.authsCache)
 		if err != nil {
-			return fmt.Errorf("failed to marshal credentials: %w: %v", ErrInvalidConfigFormat, err)
+			return fmt.Errorf("failed to marshal credentials: %w", err)
 		}
-		fs.content[configFieldAuthConfigs] = authsBytes
+		fs.content[configFieldAuths] = authsBytes
 	} else {
 		// omit empty
-		delete(fs.content, configFieldAuthConfigs)
+		delete(fs.content, configFieldAuths)
 	}
-
-	jsonData, err := json.MarshalIndent(fs.content, "", "\t")
+	jsonBytes, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
-		return fmt.Errorf("failed to marshal credentials: %w", err)
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
 	configDir := filepath.Dir(fs.configPath)
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
 	}
-	ingest, err := ioutil.Ingest(configDir, bytes.NewReader(jsonData))
+	ingest, err := ioutil.Ingest(configDir, bytes.NewReader(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
@@ -203,7 +207,7 @@ func (fs *FileStore) saveFile() error {
 	return nil
 }
 
-// authConfigToCredential converts an authConfig to auth.Credential.
+// authConfigToCredential converts an authConfig to an auth.Credential.
 func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
 	cred := auth.Credential{
 		Username:     authCfg.Username,
@@ -216,13 +220,13 @@ func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
 		// override username and password
 		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
 		if err != nil {
-			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
+			return auth.EmptyCredential, fmt.Errorf("failed to decode auth field: %w: %v", ErrInvalidConfigFormat, err)
 		}
 	}
 	return cred, nil
 }
 
-// credentialToAuthConfig converts an auth.Credential to authConfig.
+// credentialToAuthConfig converts an auth.Credential to an authConfig.
 func credentialToAuthConfig(cred auth.Credential) authConfig {
 	return authConfig{
 		Auth:          encodeAuth(cred.Username, cred.Password),
