@@ -40,6 +40,7 @@ type FileStore struct {
 
 	configPath string
 	content    map[string]json.RawMessage
+	authsCache map[string]json.RawMessage
 	rwLock     sync.RWMutex
 }
 
@@ -78,6 +79,7 @@ func NewFileStore(configPath string) (*FileStore, error) {
 		if os.IsNotExist(err) {
 			// init content map if the content file does not exist
 			fs.content = make(map[string]json.RawMessage)
+			fs.authsCache = make(map[string]json.RawMessage)
 			return fs, nil
 		}
 		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
@@ -96,6 +98,14 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
 		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
 	}
+	authsBytes, ok := fs.content[configFieldAuthConfigs]
+	if !ok {
+		fs.authsCache = make(map[string]json.RawMessage)
+		return fs, nil
+	}
+	if err := json.Unmarshal(authsBytes, &fs.authsCache); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
+	}
 	return fs, nil
 }
 
@@ -104,17 +114,13 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	fs.rwLock.RLock()
 	defer fs.rwLock.RUnlock()
 
-	authsBytes, ok := fs.content[configFieldAuthConfigs]
+	authCfgBytes, ok := fs.authsCache[serverAddress]
 	if !ok {
 		return auth.EmptyCredential, nil
 	}
-	var auths map[string]authConfig
-	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+	var authCfg authConfig
+	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
 		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
-	}
-	authCfg, ok := auths[serverAddress]
-	if !ok {
-		return auth.EmptyCredential, nil
 	}
 	return authConfigToCredential(authCfg)
 }
@@ -129,26 +135,11 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 	fs.rwLock.Lock()
 	defer fs.rwLock.Unlock()
 
-	var auths map[string]json.RawMessage
-	if authsBytes, ok := fs.content[configFieldAuthConfigs]; ok {
-		if err := json.Unmarshal(authsBytes, &auths); err != nil {
-			return fmt.Errorf("failed to unmarshal auths: %w", err)
-		}
-	} else {
-		auths = make(map[string]json.RawMessage)
-	}
-
-	// update data
 	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth config: %w", err)
 	}
-	auths[serverAddress] = authCfgBytes
-	authsBytes, err := json.Marshal(auths)
-	if err != nil {
-		return fmt.Errorf("failed to marshal auths: %w", err)
-	}
-	fs.content[configFieldAuthConfigs] = authsBytes
+	fs.authsCache[serverAddress] = authCfgBytes
 	return fs.saveFile()
 }
 
@@ -161,41 +152,36 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 		// no ops if the config file does not exist
 		return nil
 	}
-	authsBytes, ok := fs.content[configFieldAuthConfigs]
-	if !ok {
-		// no ops
-		return nil
-	}
-	var auths map[string]json.RawMessage
-	if err := json.Unmarshal(authsBytes, &auths); err != nil {
-		return fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
-	}
-	if _, ok = auths[serverAddress]; !ok {
+	if _, ok := fs.authsCache[serverAddress]; !ok {
 		// no ops
 		return nil
 	}
 
-	// update data
-	delete(auths, serverAddress)
-	var err error
-	authsBytes, err = json.Marshal(auths)
-	if err != nil {
-		return fmt.Errorf("failed to marshal credentials: %w: %v", ErrInvalidConfigFormat, err)
-	}
-	fs.content[configFieldAuthConfigs] = authsBytes
+	delete(fs.authsCache, serverAddress)
 	return fs.saveFile()
 }
 
 // saveFile saves fs.content into fs.configPath.
 func (fs *FileStore) saveFile() error {
-	configDir := filepath.Dir(fs.configPath)
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
+	if len(fs.authsCache) > 0 {
+		authsBytes, err := json.Marshal(fs.authsCache)
+		if err != nil {
+			return fmt.Errorf("failed to marshal credentials: %w: %v", ErrInvalidConfigFormat, err)
+		}
+		fs.content[configFieldAuthConfigs] = authsBytes
+	} else {
+		// omit empty
+		delete(fs.content, configFieldAuthConfigs)
 	}
 
 	jsonData, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+
+	configDir := filepath.Dir(fs.configPath)
+	if err := os.MkdirAll(configDir, 0700); err != nil {
+		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
 	}
 	ingest, err := ioutil.Ingest(configDir, bytes.NewReader(jsonData))
 	if err != nil {
