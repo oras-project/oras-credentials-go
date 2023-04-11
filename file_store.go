@@ -38,9 +38,9 @@ type FileStore struct {
 	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
 	DisableSave bool
 
-	configPath    string
-	content       map[string]json.RawMessage
-	contentRWLock sync.RWMutex
+	configPath string
+	content    map[string]json.RawMessage
+	rwLock     sync.RWMutex
 }
 
 const configFieldAuthConfigs = "auths"
@@ -101,8 +101,8 @@ func NewFileStore(configPath string) (*FileStore, error) {
 
 // Get retrieves credentials from the store for the given server address.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	fs.contentRWLock.RLock()
-	defer fs.contentRWLock.RUnlock()
+	fs.rwLock.RLock()
+	defer fs.rwLock.RUnlock()
 
 	authCfg, err := fs.getAuthConfig(serverAddress)
 	if err != nil {
@@ -119,8 +119,8 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 		return ErrPlainTextSaveDisabled
 	}
 
-	fs.contentRWLock.Lock()
-	defer fs.contentRWLock.Unlock()
+	fs.rwLock.Lock()
+	defer fs.rwLock.Unlock()
 
 	if err := fs.updateAuths(serverAddress, cred); err != nil {
 		return fmt.Errorf("failed to update credential: %w: %v", ErrInvalidConfigFormat, err)
@@ -130,8 +130,8 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 
 // Delete removes credentials from the store for the given server address.
 func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
-	fs.contentRWLock.Lock()
-	defer fs.contentRWLock.Unlock()
+	fs.rwLock.Lock()
+	defer fs.rwLock.Unlock()
 
 	if _, err := os.Stat(fs.configPath); os.IsNotExist(err) {
 		// no ops if the config file does not exist
@@ -168,20 +168,11 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 	if !ok {
 		return authConfig{}, nil
 	}
-	var auths map[string]json.RawMessage
+	var auths map[string]authConfig
 	if err := json.Unmarshal(authsBytes, &auths); err != nil {
 		return authConfig{}, fmt.Errorf("failed to unmarshal auths: %w", err)
 	}
-
-	authCfgBytes, ok := auths[serverAddress]
-	if !ok {
-		return authConfig{}, nil
-	}
-	var authCfg authConfig
-	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
-		return authConfig{}, fmt.Errorf("failed to unmarshal auth config: %w", err)
-	}
-	return authCfg, nil
+	return auths[serverAddress], nil
 }
 
 // updateAuths updates the Auths field of fs.content based on cred.
