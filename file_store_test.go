@@ -510,7 +510,6 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	wantCfg := testConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			server: {
-				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				RegistryToken: "access_token",
 			},

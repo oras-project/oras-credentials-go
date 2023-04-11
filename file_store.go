@@ -36,20 +36,14 @@ import (
 type FileStore struct {
 	// DisableSave disable saving credentials in plain text.
 	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
-	DisableSave   bool
+	DisableSave bool
+
 	configPath    string
 	content       map[string]json.RawMessage
 	contentRWLock sync.RWMutex
 }
 
-const (
-	configFieldAuthConfigs   = "auths"
-	configFieldUsername      = "username"
-	configFieldPassword      = "password"
-	configFieldBasicAuth     = "auth"
-	configFieldIdentityToken = "identitytoken"
-	configFieldRegistryToken = "registrytoken"
-)
+const configFieldAuthConfigs = "auths"
 
 var (
 	// ErrInvalidConfigFormat is returned when the config format is invalid.
@@ -115,21 +109,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 		return auth.EmptyCredential, fmt.Errorf("failed to decode credential: %w: %v", ErrInvalidConfigFormat, err)
 	}
 
-	cred := auth.Credential{
-		Username:     authCfg.Username,
-		Password:     authCfg.Password,
-		RefreshToken: authCfg.IdentityToken,
-		AccessToken:  authCfg.RegistryToken,
-	}
-	if authCfg.Auth != "" {
-		var err error
-		// override username and password
-		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
-		if err != nil {
-			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
-		}
-	}
-	return cred, nil
+	return authConfigToCredential(authCfg)
 }
 
 // Put saves credentials into the store for the given server address.
@@ -215,41 +195,8 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) err
 		auths = make(map[string]json.RawMessage)
 	}
 
-	var authCfg map[string]any
-	if authCfgBytes, ok := auths[serverAddress]; ok {
-		if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
-			return fmt.Errorf("failed to unmarshal auth config: %w", err)
-		}
-	} else {
-		authCfg = make(map[string]any)
-	}
-
-	authCfg[configFieldBasicAuth] = encodeAuth(cred.Username, cred.Password)
-	authCfg[configFieldUsername] = ""
-	authCfg[configFieldPassword] = ""
-	authCfg[configFieldIdentityToken] = cred.RefreshToken
-	authCfg[configFieldRegistryToken] = cred.AccessToken
-
-	// omit empty fields
-	cleanAuthCfg := make(map[string]any)
-	for k, v := range authCfg {
-		switch k {
-		case configFieldBasicAuth,
-			configFieldUsername,
-			configFieldPassword,
-			configFieldIdentityToken,
-			configFieldRegistryToken:
-			if v != "" {
-				cleanAuthCfg[k] = v
-			}
-		default:
-			// copy any other fields
-			cleanAuthCfg[k] = v
-		}
-	}
-
 	// update data
-	authCfgBytes, err := json.Marshal(cleanAuthCfg)
+	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth config: %w", err)
 	}
@@ -260,6 +207,34 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) err
 	}
 	fs.content[configFieldAuthConfigs] = authsBytes
 	return nil
+}
+
+// authConfigToCredential converts an authConfig to auth.Credential.
+func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
+	cred := auth.Credential{
+		Username:     authCfg.Username,
+		Password:     authCfg.Password,
+		RefreshToken: authCfg.IdentityToken,
+		AccessToken:  authCfg.RegistryToken,
+	}
+	if authCfg.Auth != "" {
+		var err error
+		// override username and password
+		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	return cred, nil
+}
+
+// credentialToAuthConfig converts an auth.Credential to authConfig.
+func credentialToAuthConfig(cred auth.Credential) authConfig {
+	return authConfig{
+		Auth:          encodeAuth(cred.Username, cred.Password),
+		IdentityToken: cred.RefreshToken,
+		RegistryToken: cred.AccessToken,
+	}
 }
 
 // saveFile saves fs.content into fs.configPath.
