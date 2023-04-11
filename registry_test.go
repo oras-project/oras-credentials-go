@@ -101,7 +101,7 @@ func TestLogin(t *testing.T) {
 				t.Fatalf("cannot create test registry: %v", err)
 			}
 			reg.PlainHTTP = true
-
+			// login to test registry
 			err = Login(tt.ctx, ns, *reg, tt.cred)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)

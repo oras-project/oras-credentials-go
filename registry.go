@@ -42,9 +42,8 @@ func Login(ctx context.Context, store Store, registry remote.Registry, cred auth
 }
 
 func mapHostname(hostname string) string {
-	// For a user case that login 'docker.io',
-	// According the the behavior of Docker CLI,
-	// credential should be added under key "https://index.docker.io/v1/"
+	// The Docker CLI expects that the 'docker.io' credential
+	// will be added under the key "https://index.docker.io/v1/"
 	if hostname == "docker.io" {
 		return "https://index.docker.io/v1/"
 	}
