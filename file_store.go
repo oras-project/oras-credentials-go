@@ -59,7 +59,7 @@ var (
 	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
 )
 
-// authConfig contains authorization information for connecting to a Registry
+// authConfig contains authorization information for connecting to a Registry.
 // References:
 //   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L17-L45
 //   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/types/authconfig.go#L3-L22
@@ -206,15 +206,21 @@ func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
 
 // updateAuths updates the Auths field of fs.content based on cred.
 func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) error {
-	authsBytes := fs.content[configFieldAuthConfigs]
 	var auths map[string]json.RawMessage
-	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+	if authsBytes, ok := fs.content[configFieldAuthConfigs]; ok {
+		if err := json.Unmarshal(authsBytes, &auths); err != nil {
+			return fmt.Errorf("failed to unmarshal auths: %w", err)
+		}
+	} else {
 		auths = make(map[string]json.RawMessage)
 	}
 
-	authCfgBytes := auths[serverAddress]
 	var authCfg map[string]any
-	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
+	if authCfgBytes, ok := auths[serverAddress]; ok {
+		if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
+			return fmt.Errorf("failed to unmarshal auth config: %w", err)
+		}
+	} else {
 		authCfg = make(map[string]any)
 	}
 
@@ -243,13 +249,12 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) err
 	}
 
 	// update data
-	var err error
-	authCfgBytes, err = json.Marshal(cleanAuthCfg)
+	authCfgBytes, err := json.Marshal(cleanAuthCfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth config: %w", err)
 	}
 	auths[serverAddress] = authCfgBytes
-	authsBytes, err = json.Marshal(auths)
+	authsBytes, err := json.Marshal(auths)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auths: %w", err)
 	}
@@ -259,14 +264,14 @@ func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) err
 
 // saveFile saves fs.content into fs.configPath.
 func (fs *FileStore) saveFile() error {
+	configDir := filepath.Dir(fs.configPath)
+	if err := os.MkdirAll(configDir, 0700); err != nil {
+		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
+	}
+
 	jsonData, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
-	}
-
-	configDir := filepath.Dir(fs.configPath)
-	if err := os.MkdirAll(configDir, 0777); err != nil {
-		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
 	}
 	ingest, err := ioutil.Ingest(configDir, bytes.NewReader(jsonData))
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 )
 
 // Ingest writes content into a temporary ingest file with the file name format
-// "oras_credstore_randomString".
+// "oras_credstore_temp{randomString}".
 func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
 	tempFile, err := os.CreateTemp(dir, "oras_credstore_temp*")
 	if err != nil {
@@ -31,13 +31,12 @@ func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
 
 	path = tempFile.Name()
 	defer func() {
+		tempFile.Close()
 		// remove the temp file in case of error.
-		// this executes after the file is closed.
 		if ingestErr != nil {
 			os.Remove(path)
 		}
 	}()
-	defer tempFile.Close()
 
 	if _, err := io.Copy(tempFile, content); err != nil {
 		return "", fmt.Errorf("failed to ingest: %w", err)
