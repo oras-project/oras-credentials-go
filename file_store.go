@@ -104,11 +104,18 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	fs.rwLock.RLock()
 	defer fs.rwLock.RUnlock()
 
-	authCfg, err := fs.getAuthConfig(serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, fmt.Errorf("failed to decode credential: %w: %v", ErrInvalidConfigFormat, err)
+	authsBytes, ok := fs.content[configFieldAuthConfigs]
+	if !ok {
+		return auth.EmptyCredential, nil
 	}
-
+	var auths map[string]authConfig
+	if err := json.Unmarshal(authsBytes, &auths); err != nil {
+		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auths: %w: %v", ErrInvalidConfigFormat, err)
+	}
+	authCfg, ok := auths[serverAddress]
+	if !ok {
+		return auth.EmptyCredential, nil
+	}
 	return authConfigToCredential(authCfg)
 }
 
@@ -122,9 +129,26 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 	fs.rwLock.Lock()
 	defer fs.rwLock.Unlock()
 
-	if err := fs.updateAuths(serverAddress, cred); err != nil {
-		return fmt.Errorf("failed to update credential: %w: %v", ErrInvalidConfigFormat, err)
+	var auths map[string]json.RawMessage
+	if authsBytes, ok := fs.content[configFieldAuthConfigs]; ok {
+		if err := json.Unmarshal(authsBytes, &auths); err != nil {
+			return fmt.Errorf("failed to unmarshal auths: %w", err)
+		}
+	} else {
+		auths = make(map[string]json.RawMessage)
 	}
+
+	// update data
+	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
+	if err != nil {
+		return fmt.Errorf("failed to marshal auth config: %w", err)
+	}
+	auths[serverAddress] = authCfgBytes
+	authsBytes, err := json.Marshal(auths)
+	if err != nil {
+		return fmt.Errorf("failed to marshal auths: %w", err)
+	}
+	fs.content[configFieldAuthConfigs] = authsBytes
 	return fs.saveFile()
 }
 
@@ -162,72 +186,6 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	return fs.saveFile()
 }
 
-// getAuthConfig reads the config and returns authConfig for serverAddress.
-func (fs *FileStore) getAuthConfig(serverAddress string) (authConfig, error) {
-	authsBytes, ok := fs.content[configFieldAuthConfigs]
-	if !ok {
-		return authConfig{}, nil
-	}
-	var auths map[string]authConfig
-	if err := json.Unmarshal(authsBytes, &auths); err != nil {
-		return authConfig{}, fmt.Errorf("failed to unmarshal auths: %w", err)
-	}
-	return auths[serverAddress], nil
-}
-
-// updateAuths updates the Auths field of fs.content based on cred.
-func (fs *FileStore) updateAuths(serverAddress string, cred auth.Credential) error {
-	var auths map[string]json.RawMessage
-	if authsBytes, ok := fs.content[configFieldAuthConfigs]; ok {
-		if err := json.Unmarshal(authsBytes, &auths); err != nil {
-			return fmt.Errorf("failed to unmarshal auths: %w", err)
-		}
-	} else {
-		auths = make(map[string]json.RawMessage)
-	}
-
-	// update data
-	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
-	if err != nil {
-		return fmt.Errorf("failed to marshal auth config: %w", err)
-	}
-	auths[serverAddress] = authCfgBytes
-	authsBytes, err := json.Marshal(auths)
-	if err != nil {
-		return fmt.Errorf("failed to marshal auths: %w", err)
-	}
-	fs.content[configFieldAuthConfigs] = authsBytes
-	return nil
-}
-
-// authConfigToCredential converts an authConfig to auth.Credential.
-func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
-	cred := auth.Credential{
-		Username:     authCfg.Username,
-		Password:     authCfg.Password,
-		RefreshToken: authCfg.IdentityToken,
-		AccessToken:  authCfg.RegistryToken,
-	}
-	if authCfg.Auth != "" {
-		var err error
-		// override username and password
-		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
-		if err != nil {
-			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
-		}
-	}
-	return cred, nil
-}
-
-// credentialToAuthConfig converts an auth.Credential to authConfig.
-func credentialToAuthConfig(cred auth.Credential) authConfig {
-	return authConfig{
-		Auth:          encodeAuth(cred.Username, cred.Password),
-		IdentityToken: cred.RefreshToken,
-		RegistryToken: cred.AccessToken,
-	}
-}
-
 // saveFile saves fs.content into fs.configPath.
 func (fs *FileStore) saveFile() error {
 	configDir := filepath.Dir(fs.configPath)
@@ -257,6 +215,34 @@ func (fs *FileStore) saveFile() error {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
+}
+
+// authConfigToCredential converts an authConfig to auth.Credential.
+func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
+	cred := auth.Credential{
+		Username:     authCfg.Username,
+		Password:     authCfg.Password,
+		RefreshToken: authCfg.IdentityToken,
+		AccessToken:  authCfg.RegistryToken,
+	}
+	if authCfg.Auth != "" {
+		var err error
+		// override username and password
+		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("failed to decode username and password: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	return cred, nil
+}
+
+// credentialToAuthConfig converts an auth.Credential to authConfig.
+func credentialToAuthConfig(cred auth.Credential) authConfig {
+	return authConfig{
+		Auth:          encodeAuth(cred.Username, cred.Password),
+		IdentityToken: cred.RefreshToken,
+		RegistryToken: cred.AccessToken,
+	}
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).
