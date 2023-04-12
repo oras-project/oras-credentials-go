@@ -86,11 +86,21 @@ func TestNewFileStore_badFormat(t *testing.T) {
 			configPath: "testdata/bad_config",
 			wantErr:    ErrInvalidConfigFormat,
 		},
+		{
+			name:       "Invalid auths format",
+			configPath: "testdata/invalid_auths_config.json",
+			wantErr:    ErrInvalidConfigFormat,
+		},
+		{
+			name:       "No auths field",
+			configPath: "testdata/no_auths_config.json",
+			wantErr:    nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := NewFileStore(tt.configPath)
-			if !errors.Is(err, ErrInvalidConfigFormat) {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("NewFileStore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -191,7 +201,7 @@ func TestFileStore_Get_validConfig(t *testing.T) {
 
 func TestFileStore_Get_invalidConfig(t *testing.T) {
 	ctx := context.Background()
-	fs, err := NewFileStore("testdata/invalid_auths_config.json")
+	fs, err := NewFileStore("testdata/invalid_auths_entry_config.json")
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
