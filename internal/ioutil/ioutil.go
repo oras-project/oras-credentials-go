@@ -22,9 +22,9 @@ import (
 )
 
 // Ingest writes content into a temporary ingest file with the file name format
-// "oras_credstore_temp{randomString}".
+// "oras_credstore_temp_{randomString}".
 func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
-	tempFile, err := os.CreateTemp(dir, "oras_credstore_temp*")
+	tempFile, err := os.CreateTemp(dir, "oras_credstore_temp_*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create ingest file: %w", err)
 	}

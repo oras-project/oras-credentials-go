@@ -34,17 +34,17 @@ import (
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
 type FileStore struct {
-	// DisableSave disable saving credentials in plain text.
-	// If DisableSave is set to true, Put() will return ErrPlainTextSaveDisabled.
+	// DisableSave disables saving credentials in plaintext.
+	// If DisableSave is set to true, Put() will return ErrPlaintextSaveDisabled.
 	DisableSave bool
 
-	// configPath is the path to the config file
+	// configPath is the path to the config file.
 	configPath string
-	// content is the content of the config file
+	// content is the content of the config file.
 	content map[string]json.RawMessage
-	// authsCache is a cache of the auths field of the config field
+	// authsCache is a cache of the auths field of the config field.
 	authsCache map[string]json.RawMessage
-	// rwLock is a read-write-lock
+	// rwLock is a read-write-lock for the file store.
 	rwLock sync.RWMutex
 }
 
@@ -53,9 +53,9 @@ const configFieldAuths = "auths"
 var (
 	// ErrInvalidConfigFormat is returned when the config format is invalid.
 	ErrInvalidConfigFormat = errors.New("invalid config format")
-	// ErrPlainTextSaveDisabled is returned by Put() when DisableSave is set
+	// ErrPlaintextSaveDisabled is returned by Put() when DisableSave is set
 	// to true.
-	ErrPlainTextSaveDisabled = errors.New("plain text save is disabled")
+	ErrPlaintextSaveDisabled = errors.New("plaintext save is disabled")
 )
 
 // authConfig contains authorization information for connecting to a Registry.
@@ -65,14 +65,42 @@ var (
 type authConfig struct {
 	// Auth is a base64-encoded string of "{username}:{password}".
 	Auth string `json:"auth,omitempty"`
-	// IdentityToken is used to authenticate the user and get
+	// IdentityToken is used to authenticate the user and get.
 	// an access token for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
-	// RegistryToken is a bearer token to be sent to a registry
+	// RegistryToken is a bearer token to be sent to a registry.
 	RegistryToken string `json:"registrytoken,omitempty"`
 
 	Username string `json:"username,omitempty"` // legacy field for compatibility
 	Password string `json:"password,omitempty"` // legacy field for compatibility
+}
+
+// newAuthConfig creates an authConfig based on cred.
+func newAuthConfig(cred auth.Credential) authConfig {
+	return authConfig{
+		Auth:          encodeAuth(cred.Username, cred.Password),
+		IdentityToken: cred.RefreshToken,
+		RegistryToken: cred.AccessToken,
+	}
+}
+
+// Credential returns an auth.Credential based on ac.
+func (ac authConfig) Credential() (auth.Credential, error) {
+	cred := auth.Credential{
+		Username:     ac.Username,
+		Password:     ac.Password,
+		RefreshToken: ac.IdentityToken,
+		AccessToken:  ac.RegistryToken,
+	}
+	if ac.Auth != "" {
+		var err error
+		// override username and password
+		cred.Username, cred.Password, err = decodeAuth(ac.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("failed to decode auth field: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	return cred, nil
 }
 
 // NewFileStore creates a new file credentials store.
@@ -127,20 +155,21 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
 		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auth field: %w: %v", ErrInvalidConfigFormat, err)
 	}
-	return authConfigToCredential(authCfg)
+	return authCfg.Credential()
 }
 
 // Put saves credentials into the store for the given server address.
-// Returns ErrPlainTextSaveDisabled if fs.DisableSave is set to true.
+// Returns ErrPlaintextSaveDisabled if fs.DisableSave is set to true.
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	if fs.DisableSave {
-		return ErrPlainTextSaveDisabled
+		return ErrPlaintextSaveDisabled
 	}
 
 	fs.rwLock.Lock()
 	defer fs.rwLock.Unlock()
 
-	authCfgBytes, err := json.Marshal(credentialToAuthConfig(cred))
+	authCfg := newAuthConfig(cred)
+	authCfgBytes, err := json.Marshal(authCfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth field: %w", err)
 	}
@@ -205,34 +234,6 @@ func (fs *FileStore) saveFile() error {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
-}
-
-// authConfigToCredential converts an authConfig to an auth.Credential.
-func authConfigToCredential(authCfg authConfig) (auth.Credential, error) {
-	cred := auth.Credential{
-		Username:     authCfg.Username,
-		Password:     authCfg.Password,
-		RefreshToken: authCfg.IdentityToken,
-		AccessToken:  authCfg.RegistryToken,
-	}
-	if authCfg.Auth != "" {
-		var err error
-		// override username and password
-		cred.Username, cred.Password, err = decodeAuth(authCfg.Auth)
-		if err != nil {
-			return auth.EmptyCredential, fmt.Errorf("failed to decode auth field: %w: %v", ErrInvalidConfigFormat, err)
-		}
-	}
-	return cred, nil
-}
-
-// credentialToAuthConfig converts an auth.Credential to an authConfig.
-func credentialToAuthConfig(cred auth.Credential) authConfig {
-	return authConfig{
-		Auth:          encodeAuth(cred.Username, cred.Password),
-		IdentityToken: cred.RefreshToken,
-		RegistryToken: cred.AccessToken,
-	}
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).

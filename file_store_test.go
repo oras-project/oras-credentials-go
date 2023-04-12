@@ -549,7 +549,7 @@ func TestStore_Put_disableSave(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 	err = fs.Put(ctx, server, cred)
-	if wantErr := ErrPlainTextSaveDisabled; !errors.Is(err, wantErr) {
+	if wantErr := ErrPlaintextSaveDisabled; !errors.Is(err, wantErr) {
 		t.Errorf("FileStore.Put() error = %v, wantErr %v", err, wantErr)
 	}
 }
