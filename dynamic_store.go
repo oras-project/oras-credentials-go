@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -35,9 +36,29 @@ type credentialConfig struct {
 // in the config file.
 type dynamicStore struct {
 	credentialConfig
-	configPath string
-	fileStore  *FileStore
-	options    StoreOptions
+	configPath    string
+	options       StoreOptions
+	fileStore     *FileStore
+	fileStoreOnce sync.Once
+}
+
+// LoadConfig loads the config file for ds.
+func (ds *dynamicStore) LoadConfig() error {
+	configFile, err := os.Open(ds.configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// the config file can be created when needed
+			return nil
+		}
+		return fmt.Errorf("failed to open config file at %s: %w", ds.configPath, err)
+	}
+	defer configFile.Close()
+
+	// decode credential config if the config file exists
+	if err := json.NewDecoder(configFile).Decode(&ds.credentialConfig); err != nil {
+		return fmt.Errorf("failed to decode config file at %s: %w: %v", ds.configPath, ErrInvalidConfigFormat, err)
+	}
+	return nil
 }
 
 // StoreOptions provides options for NewStore.
@@ -53,19 +74,8 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 		options:    opts,
 	}
 
-	configFile, err := os.Open(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// the config file can be created when needed
-			return ds, nil
-		}
-		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
-	}
-	defer configFile.Close()
-
-	// decode credential config if the config file exists
-	if err := json.NewDecoder(configFile).Decode(&ds.credentialConfig); err != nil {
-		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
+	if err := ds.LoadConfig(); err != nil {
+		return nil, err
 	}
 	return ds, nil
 }
@@ -74,7 +84,7 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	store, err := ds.getStore(serverAddress)
 	if err != nil {
-		return auth.EmptyCredential, nil
+		return auth.EmptyCredential, err
 	}
 	return store.Get(ctx, serverAddress)
 }
@@ -97,27 +107,36 @@ func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error 
 	return store.Delete(ctx, serverAddress)
 }
 
-// getStore returns a store for the given server address.
-func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
+// getHelperSuffix returns the credential helper suffix for the given server
+// address.
+func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 	// 1. Look for a server-specific credential helper first
 	if helper := ds.CredentialHelpers[serverAddress]; helper != "" {
-		return NewNativeStore(helper), nil
+		return helper
 	}
 	// 2. Then look for the configured native store
-	if ds.CredentialsStore != "" {
-		return NewNativeStore(ds.CredentialsStore), nil
+	return ds.CredentialsStore
+}
+
+// getStore returns a store for the given server address.
+func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
+	if helper := ds.getHelperSuffix(serverAddress); helper != "" {
+		return NewNativeStore(helper), nil
 	}
-	// 3. Finally use a file store
-	if ds.fileStore == nil {
-		// lazy loading
-		var err error
+
+	// lazy loading file store when no native store is available
+	var err error
+	ds.fileStoreOnce.Do(func() {
 		ds.fileStore, err = NewFileStore(ds.configPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize file store: %w", err)
+			return
 		}
 		if !ds.options.AllowPlaintext {
 			ds.fileStore.DisableSave = true
 		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize file store: %w", err)
 	}
 	return ds.fileStore, nil
 }

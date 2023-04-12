@@ -23,92 +23,187 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-func TestDynamicStore_Get(t *testing.T) {
+func Test_dynamicStore_Get_fileStore(t *testing.T) {
 	ctx := context.Background()
-	ds, err := NewStore("testdata/auth_config.json", StoreOptions{})
-	if err != nil {
-		t.Fatalf("NewDynamicStore() error = %v", err)
-	}
-
 	tests := []struct {
 		name          string
+		configPath    string
 		serverAddress string
 		want          auth.Credential
 		wantErr       bool
 	}{
 		{
-			name:          "Username and password",
-			serverAddress: "registry1.example.com",
-			want: auth.Credential{
-				Username: "username",
-				Password: "password",
-			},
-		},
-		{
-			name:          "Identity token",
-			serverAddress: "registry2.example.com",
-			want: auth.Credential{
-				RefreshToken: "identity_token",
-			},
-		},
-		{
-			name:          "Registry token",
+			name:          "registry3.example.com",
+			configPath:    "testdata/credHelpers_config.json",
 			serverAddress: "registry3.example.com",
 			want: auth.Credential{
-				AccessToken: "registry_token",
+				Username: "foo",
+				Password: "bar",
 			},
-		},
-		{
-			name:          "Username and password, identity token and registry token",
-			serverAddress: "registry4.example.com",
-			want: auth.Credential{
-				Username:     "username",
-				Password:     "password",
-				RefreshToken: "identity_token",
-				AccessToken:  "registry_token",
-			},
-		},
-		{
-			name:          "Empty credential",
-			serverAddress: "registry5.example.com",
-			want:          auth.EmptyCredential,
-		},
-		{
-			name:          "Username and password, no auth",
-			serverAddress: "registry6.example.com",
-			want: auth.Credential{
-				Username: "username",
-				Password: "password",
-			},
-		},
-		{
-			name:          "Auth overriding Username and password",
-			serverAddress: "registry7.example.com",
-			want: auth.Credential{
-				Username: "username",
-				Password: "password",
-			},
-		},
-		{
-			name:          "Not in auths",
-			serverAddress: "foo.example.com",
-			want:          auth.EmptyCredential,
-		},
-		{
-			name:          "No record",
-			serverAddress: "registry999.example.com",
-			want:          auth.EmptyCredential,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ds, err := NewStore(tt.configPath, StoreOptions{})
+			if err != nil {
+				t.Fatal("NewStore() error =", err)
+			}
 			got, err := ds.Get(ctx, tt.serverAddress)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("DynamicStore.Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("dynamicStore.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DynamicStore.Get() = %v, want %v", got, tt.want)
+				t.Errorf("dynamicStore.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_dynamicStore_getHelperSuffix(t *testing.T) {
+	tests := []struct {
+		name          string
+		configPath    string
+		serverAddress string
+		want          string
+	}{
+		{
+			name:          "Get cred helper: registry_helper1",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry1.example.com",
+			want:          "registry1-helper",
+		},
+		{
+			name:          "Get cred helper: registry_helper2",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry2.example.com",
+			want:          "registry2-helper",
+		},
+		{
+			name:          "Empty cred helper configured",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry3.example.com",
+			want:          "",
+		},
+		{
+			name:          "No cred helper and creds store configured",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "whatever.example.com",
+			want:          "",
+		},
+		{
+			name:          "Choose cred helper over creds store",
+			configPath:    "testdata/credsStore_config.json",
+			serverAddress: "test.example.com",
+			want:          "test-helper",
+		},
+		{
+			name:          "No cred helper configured, choose cred store",
+			configPath:    "testdata/credsStore_config.json",
+			serverAddress: "whatever.example.com",
+			want:          "teststore",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := &dynamicStore{
+				configPath: tt.configPath,
+			}
+			if err := ds.LoadConfig(); err != nil {
+				t.Fatal("dynamicStore.LoadConfig() error =", err)
+			}
+			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
+				t.Errorf("dynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
+	tests := []struct {
+		name          string
+		configPath    string
+		serverAddress string
+	}{
+		{
+			name:          "Cred helper configured for registry1.example.com",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry1.example.com",
+		},
+		{
+			name:          "Cred helper configured for registry2.example.com",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry2.example.com",
+		},
+		{
+			name:          "Cred helper configured for test.example.com",
+			configPath:    "testdata/credsStore_config.json",
+			serverAddress: "test.example.com",
+		},
+		{
+			name:          "No cred helper configured, use creds store",
+			configPath:    "testdata/credsStore_config.json",
+			serverAddress: "whaterver.example.com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := &dynamicStore{
+				configPath: tt.configPath,
+			}
+			if err := ds.LoadConfig(); err != nil {
+				t.Fatal("dynamicStore.LoadConfig() error =", err)
+			}
+			gotStore, err := ds.getStore(tt.serverAddress)
+			if err != nil {
+				t.Fatal("dynamicStore.getStore() error =", err)
+			}
+			if _, ok := gotStore.(*NativeStore); !ok {
+				t.Errorf("gotStore is not a native store")
+			}
+		})
+	}
+}
+
+func Test_dynamicStore_getStore_fileStore(t *testing.T) {
+	tests := []struct {
+		name          string
+		configPath    string
+		serverAddress string
+	}{
+		{
+			name:          "Empty cred helper configured for registry3.example.com",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "registry3.example.com",
+		},
+		{
+			name:          "No cred helper configured",
+			configPath:    "testdata/credHelpers_config.json",
+			serverAddress: "whatever.example.com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := &dynamicStore{
+				configPath: tt.configPath,
+			}
+			if err := ds.LoadConfig(); err != nil {
+				t.Fatal("dynamicStore.LoadConfig() error =", err)
+			}
+			gotStore, err := ds.getStore(tt.serverAddress)
+			if err != nil {
+				t.Fatal("dynamicStore.getStore() error =", err)
+			}
+			if gotStore != ds.fileStore {
+				t.Errorf("gotStore is not a file store")
+			}
+			// get again, the same file store should be returned
+			gotStore, err = ds.getStore(tt.serverAddress)
+			if err != nil {
+				t.Fatal("dynamicStore.getStore() error =", err)
+			}
+			if gotStore != ds.fileStore {
+				t.Errorf("gotStore is not a file store")
 			}
 		})
 	}
