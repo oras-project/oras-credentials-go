@@ -118,14 +118,6 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	}
 	defer configFile.Close()
 
-	fi, err := configFile.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat config file at %s: %w", configPath, err)
-	}
-	if fi.IsDir() {
-		return nil, fmt.Errorf("configPath %s is a directory", configPath)
-	}
-
 	// decode config content if the config file exists
 	if err := json.NewDecoder(configFile).Decode(&fs.content); err != nil {
 		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
@@ -182,15 +174,10 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 	fs.rwLock.Lock()
 	defer fs.rwLock.Unlock()
 
-	if _, err := os.Stat(fs.configPath); os.IsNotExist(err) {
-		// no ops if the config file does not exist yet
-		return nil
-	}
 	if _, ok := fs.authsCache[serverAddress]; !ok {
 		// no ops
 		return nil
 	}
-
 	delete(fs.authsCache, serverAddress)
 	return fs.saveFile()
 }
@@ -212,6 +199,7 @@ func (fs *FileStore) saveFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
+	// write the content to a temp file first for atomicity
 	configDir := filepath.Dir(fs.configPath)
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
@@ -237,40 +225,27 @@ func (fs *FileStore) saveFile() error {
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L215-L226
 func encodeAuth(username, password string) string {
 	if username == "" && password == "" {
 		return ""
 	}
-
-	authStr := username + ":" + password
-	msg := []byte(authStr)
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
-	base64.StdEncoding.Encode(encoded, msg)
-	return string(encoded)
+	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 }
 
 // decodeAuth decodes a base64 encoded string and returns username and password.
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L228-L249
 func decodeAuth(authStr string) (username string, password string, err error) {
 	if authStr == "" {
 		return "", "", nil
 	}
 
-	decodedLen := base64.StdEncoding.DecodedLen(len(authStr))
-	decoded := make([]byte, decodedLen)
-	authByte := []byte(authStr)
-	n, err := base64.StdEncoding.Decode(decoded, authByte)
+	decoded, err := base64.StdEncoding.DecodeString(authStr)
 	if err != nil {
 		return "", "", err
 	}
-	if n > decodedLen {
-		return "", "", errors.New("size mismatch")
+	decodedStr := string(decoded)
+	username, password, ok := strings.Cut(decodedStr, ":")
+	if !ok {
+		return "", "", fmt.Errorf("auth '%s' does not conform the base64(username:password) format", decodedStr)
 	}
-	arr := strings.SplitN(string(decoded), ":", 2)
-	if len(arr) != 2 {
-		return "", "", errors.New("auth does not conform username:password format")
-	}
-	password = strings.Trim(arr[1], "\x00")
-	return arr[0], password, nil
+	return username, password, nil
 }

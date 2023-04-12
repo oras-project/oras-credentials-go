@@ -776,13 +776,13 @@ func Test_encodeAuth(t *testing.T) {
 			want:     "dXNlcm5hbWU6cGFzc3dvcmQ=",
 		},
 		{
-			name:     "Empty username",
+			name:     "Username only",
 			username: "username",
 			password: "",
 			want:     "dXNlcm5hbWU6",
 		},
 		{
-			name:     "Empty password",
+			name:     "Password only",
 			username: "",
 			password: "password",
 			want:     "OnBhc3N3b3Jk",
@@ -812,21 +812,31 @@ func Test_decodeAuth(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "Success",
+			name:     "Valid base64",
 			authStr:  "dXNlcm5hbWU6cGFzc3dvcmQ=", // username:password
 			username: "username",
 			password: "password",
 		},
 		{
-			name:     "Invalid base64",
-			authStr:  "whatever",
+			name:     "Valid base64, username only",
+			authStr:  "dXNlcm5hbWU6", // username:
+			username: "username",
+		},
+		{
+			name:     "Valid base64, password only",
+			authStr:  "OnBhc3N3b3Jk", // :password
+			password: "password",
+		},
+		{
+			name:     "Valid base64, bad format",
+			authStr:  "d2hhdGV2ZXI=", // whatever
 			username: "",
 			password: "",
 			wantErr:  true,
 		},
 		{
-			name:     "Invalid username password format",
-			authStr:  "d2hhdGV2ZXI=", // whatever
+			name:     "Invalid base64",
+			authStr:  "whatever",
 			username: "",
 			password: "",
 			wantErr:  true,
