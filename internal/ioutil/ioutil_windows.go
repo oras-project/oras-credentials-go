@@ -18,6 +18,7 @@ limitations under the License.
 
 package ioutil
 
-func CopyFilePermissions(src, dst string) {
+func CopyFilePermissions(src, dst string) error {
 	// TODO implement for Windows
+	return nil
 }

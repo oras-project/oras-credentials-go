@@ -41,13 +41,17 @@ type FileStore struct {
 	// configPath is the path to the config file.
 	configPath string
 	// content is the content of the config file.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L17-L45
 	content map[string]json.RawMessage
 	// authsCache is a cache of the auths field of the config field.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
 	authsCache map[string]json.RawMessage
 	// rwLock is a read-write-lock for the file store.
 	rwLock sync.RWMutex
 }
 
+// configFieldAuths is the "auths" field in the config file.
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
 const configFieldAuths = "auths"
 
 var (
@@ -183,23 +187,19 @@ func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
 }
 
 // saveFile saves fs.content into fs.configPath.
-func (fs *FileStore) saveFile() error {
-	if len(fs.authsCache) > 0 {
-		authsBytes, err := json.Marshal(fs.authsCache)
-		if err != nil {
-			return fmt.Errorf("failed to marshal credentials: %w", err)
-		}
-		fs.content[configFieldAuths] = authsBytes
-	} else {
-		// omit empty
-		delete(fs.content, configFieldAuths)
+func (fs *FileStore) saveFile() (returnErr error) {
+	// marshal content
+	authsBytes, err := json.Marshal(fs.authsCache)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
+	fs.content[configFieldAuths] = authsBytes
 	jsonBytes, err := json.MarshalIndent(fs.content, "", "\t")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	// write the content to a temp file first for atomicity
+	// write the content to a ingest file for atomicity
 	configDir := filepath.Dir(fs.configPath)
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("failed to make directory %s: %w", configDir, err)
@@ -208,6 +208,12 @@ func (fs *FileStore) saveFile() error {
 	if err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
+	defer func() {
+		if returnErr != nil {
+			// clean up the ingest file in case of error
+			os.Remove(ingest)
+		}
+	}()
 
 	// handle symlink
 	targetPath := fs.configPath
@@ -215,10 +221,11 @@ func (fs *FileStore) saveFile() error {
 		targetPath = link
 	}
 	// copy file with original ownership and permissions
-	ioutil.CopyFilePermissions(targetPath, ingest)
+	if err := ioutil.CopyFilePermissions(targetPath, ingest); err != nil {
+		return fmt.Errorf("failed to copy permissions from %s to %s: %w", targetPath, ingest, err)
+	}
+	// overwrite the target file
 	if err := os.Rename(ingest, targetPath); err != nil {
-		// clean up the ingest file
-		os.Remove(ingest)
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil

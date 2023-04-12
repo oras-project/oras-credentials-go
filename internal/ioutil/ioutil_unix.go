@@ -19,33 +19,37 @@ limitations under the License.
 package ioutil
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 )
 
-// CopyFilePermissions copies file ownership and permissions from "src" to "dst",
-// ignoring any error during the process.
-func CopyFilePermissions(src, dst string) {
-	var (
-		mode     os.FileMode = 0600
-		uid, gid int
-	)
+// CopyFilePermissions copies file ownership and permissions from "src" to "dst".
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file_unix.go#L11-L36
+func CopyFilePermissions(src, dst string) error {
+	mode := os.FileMode(0600)
 
 	fi, err := os.Stat(src)
 	if err != nil {
-		return
+		if os.IsNotExist(err) {
+			// no ops
+			return nil
+		}
+		return fmt.Errorf("failed to stat %s: %w", src, err)
 	}
 	if fi.Mode().IsRegular() {
 		mode = fi.Mode()
 	}
 	if err := os.Chmod(dst, mode); err != nil {
-		return
+		return fmt.Errorf("failed to chmod for %s: %w", dst, err)
 	}
 
-	uid = int(fi.Sys().(*syscall.Stat_t).Uid)
-	gid = int(fi.Sys().(*syscall.Stat_t).Gid)
-
+	uid := int(fi.Sys().(*syscall.Stat_t).Uid)
+	gid := int(fi.Sys().(*syscall.Stat_t).Gid)
 	if uid > 0 && gid > 0 {
-		_ = os.Chown(dst, uid, gid)
+		if err := os.Chown(dst, uid, gid); err != nil {
+			return fmt.Errorf("failed to chown for %s: %w", dst, err)
+		}
 	}
+	return nil
 }
