@@ -24,11 +24,5 @@
             "username": "foo",
             "password": "bar"
         }
-    },
-    "credsStore": "mycredsstore",
-    "credHelpers": {
-        "foo.example.com": "foohelper",
-        "bar.example.org": "barhelper"
-    },
-    "key": "val"
+    }
 }

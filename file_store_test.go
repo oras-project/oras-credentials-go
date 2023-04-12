@@ -100,7 +100,7 @@ func TestNewFileStore_badFormat(t *testing.T) {
 
 func TestFileStore_Get_validConfig(t *testing.T) {
 	ctx := context.Background()
-	fs, err := NewFileStore("testdata/valid_config.json")
+	fs, err := NewFileStore("testdata/valid_auths_config.json")
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
@@ -191,7 +191,7 @@ func TestFileStore_Get_validConfig(t *testing.T) {
 
 func TestFileStore_Get_invalidConfig(t *testing.T) {
 	ctx := context.Background()
-	fs, err := NewFileStore("testdata/invalid_config.json")
+	fs, err := NewFileStore("testdata/invalid_auths_config.json")
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
