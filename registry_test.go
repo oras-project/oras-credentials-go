@@ -77,25 +77,22 @@ func TestLogin(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "login succeeds",
-			ctx:      context.Background(),
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: testPassword},
-			wantErr:  false,
+			name:    "login succeeds",
+			ctx:     context.Background(),
+			cred:    auth.Credential{Username: testUsername, Password: testPassword},
+			wantErr: false,
 		},
 		{
-			name:     "login fails (incorrect password)",
-			ctx:      context.Background(),
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: "whatever"},
-			wantErr:  true,
+			name:    "login fails (incorrect password)",
+			ctx:     context.Background(),
+			cred:    auth.Credential{Username: testUsername, Password: "whatever"},
+			wantErr: true,
 		},
 		{
-			name:     "login fails (nil context makes remote.Ping fails)",
-			ctx:      nil,
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: testPassword},
-			wantErr:  true,
+			name:    "login fails (nil context makes remote.Ping fails)",
+			ctx:     nil,
+			cred:    auth.Credential{Username: testUsername, Password: testPassword},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -112,6 +109,44 @@ func TestLogin(t *testing.T) {
 				t.Fatalf("Stored credential = %v, want %v", got, tt.cred)
 			}
 			ns.Delete(tt.ctx, reg.Reference.Registry)
+		})
+	}
+}
+
+func TestLogout(t *testing.T) {
+	// create a test store
+	ns := &testStore{}
+	ns.storage = make(map[string]auth.Credential)
+	ns.storage["localhost:2333"] = auth.Credential{Username: "test_user", Password: "test_word"}
+	ns.storage["https://index.docker.io/v1/"] = auth.Credential{Username: "user", Password: "word"}
+	tests := []struct {
+		name         string
+		ctx          context.Context
+		store        Store
+		registryName string
+		wantErr      bool
+	}{
+		{
+			name:         "logout of regular registry",
+			ctx:          context.Background(),
+			registryName: "localhost:2333",
+			wantErr:      false,
+		},
+		{
+			name:         "logout of docker.io",
+			ctx:          context.Background(),
+			registryName: "docker.io",
+			wantErr:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := Logout(tt.ctx, ns, tt.registryName); (err != nil) != tt.wantErr {
+				t.Fatalf("Logout() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if ns.storage[tt.registryName] != auth.EmptyCredential {
+				t.Fatalf("Credentials are not deleted")
+			}
 		})
 	}
 }

@@ -55,6 +55,15 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	return nil
 }
 
+// Logout provides the logout functionality given the registry name.
+func Logout(ctx context.Context, store Store, registryName string) error {
+	registryName = mapHostname(registryName)
+	if err := store.Delete(ctx, registryName); err != nil {
+		return fmt.Errorf("unable to logout: %v", err)
+	}
+	return nil
+}
+
 func mapHostname(hostname string) string {
 	// The Docker CLI expects that the 'docker.io' credential
 	// will be added under the key "https://index.docker.io/v1/"
