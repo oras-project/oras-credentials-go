@@ -68,7 +68,7 @@ func TestLogin(t *testing.T) {
 	}
 	reg.PlainHTTP = true
 	// create a test store
-	ns := &testStore{}
+	s := &testStore{}
 	tests := []struct {
 		name     string
 		ctx      context.Context
@@ -77,41 +77,77 @@ func TestLogin(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "login succeeds",
-			ctx:      context.Background(),
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: testPassword},
-			wantErr:  false,
+			name:    "login succeeds",
+			ctx:     context.Background(),
+			cred:    auth.Credential{Username: testUsername, Password: testPassword},
+			wantErr: false,
 		},
 		{
-			name:     "login fails (incorrect password)",
-			ctx:      context.Background(),
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: "whatever"},
-			wantErr:  true,
+			name:    "login fails (incorrect password)",
+			ctx:     context.Background(),
+			cred:    auth.Credential{Username: testUsername, Password: "whatever"},
+			wantErr: true,
 		},
 		{
-			name:     "login fails (nil context makes remote.Ping fails)",
-			ctx:      nil,
-			registry: reg,
-			cred:     auth.Credential{Username: testUsername, Password: testPassword},
-			wantErr:  true,
+			name:    "login fails (nil context makes remote.Ping fails)",
+			ctx:     nil,
+			cred:    auth.Credential{Username: testUsername, Password: testPassword},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// login to test registry
-			err := Login(tt.ctx, ns, reg, tt.cred)
+			err := Login(tt.ctx, s, reg, tt.cred)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			if got := ns.storage[reg.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
+			if got := s.storage[reg.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
 				t.Fatalf("Stored credential = %v, want %v", got, tt.cred)
 			}
-			ns.Delete(tt.ctx, reg.Reference.Registry)
+			s.Delete(tt.ctx, reg.Reference.Registry)
+		})
+	}
+}
+
+func TestLogout(t *testing.T) {
+	// create a test store
+	s := &testStore{}
+	s.storage = map[string]auth.Credential{
+		"localhost:2333":              {Username: "test_user", Password: "test_word"},
+		"https://index.docker.io/v1/": {Username: "user", Password: "word"},
+	}
+	tests := []struct {
+		name         string
+		ctx          context.Context
+		store        Store
+		registryName string
+		wantErr      bool
+	}{
+		{
+			name:         "logout of regular registry",
+			ctx:          context.Background(),
+			registryName: "localhost:2333",
+			wantErr:      false,
+		},
+		{
+			name:         "logout of docker.io",
+			ctx:          context.Background(),
+			registryName: "docker.io",
+			wantErr:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := Logout(tt.ctx, s, tt.registryName); (err != nil) != tt.wantErr {
+				t.Fatalf("Logout() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if s.storage[tt.registryName] != auth.EmptyCredential {
+				t.Error("Credentials are not deleted")
+			}
 		})
 	}
 }
