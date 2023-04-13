@@ -174,7 +174,7 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 }
 
 // Delete removes credentials from the store for the given server address.
-func (fs *FileStore) Delete(ctx context.Context, serverAddress string) error {
+func (fs *FileStore) Delete(_ context.Context, serverAddress string) error {
 	fs.rwLock.Lock()
 	defer fs.rwLock.Unlock()
 

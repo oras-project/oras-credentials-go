@@ -24,11 +24,10 @@ import (
 // Ingest writes content into a temporary ingest file with the file name format
 // "oras_credstore_temp_{randomString}".
 func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
-	tempFile, err := os.CreateTemp(dir, "oras_credstore_temp_*") // mode: 0600
+	tempFile, err := os.CreateTemp(dir, "oras_credstore_temp_*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create ingest file: %w", err)
 	}
-
 	path = tempFile.Name()
 	defer func() {
 		tempFile.Close()
@@ -38,6 +37,9 @@ func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
 		}
 	}()
 
+	if err := tempFile.Chmod(0600); err != nil {
+		return "", fmt.Errorf("failed to ensure permission: %w", err)
+	}
 	if _, err := io.Copy(tempFile, content); err != nil {
 		return "", fmt.Errorf("failed to ingest: %w", err)
 	}
