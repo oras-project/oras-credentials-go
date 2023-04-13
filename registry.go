@@ -59,7 +59,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 func Logout(ctx context.Context, store Store, registryName string) error {
 	registryName = mapHostname(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
-		return fmt.Errorf("unable to logout: %v", err)
+		return fmt.Errorf("unable to logout of the registry %s: %w", registryName, err)
 	}
 	return nil
 }

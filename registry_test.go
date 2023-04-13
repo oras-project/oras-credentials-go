@@ -68,7 +68,7 @@ func TestLogin(t *testing.T) {
 	}
 	reg.PlainHTTP = true
 	// create a test store
-	ns := &testStore{}
+	s := &testStore{}
 	tests := []struct {
 		name     string
 		ctx      context.Context
@@ -98,27 +98,28 @@ func TestLogin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// login to test registry
-			err := Login(tt.ctx, ns, reg, tt.cred)
+			err := Login(tt.ctx, s, reg, tt.cred)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			if got := ns.storage[reg.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
+			if got := s.storage[reg.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
 				t.Fatalf("Stored credential = %v, want %v", got, tt.cred)
 			}
-			ns.Delete(tt.ctx, reg.Reference.Registry)
+			s.Delete(tt.ctx, reg.Reference.Registry)
 		})
 	}
 }
 
 func TestLogout(t *testing.T) {
 	// create a test store
-	ns := &testStore{}
-	ns.storage = make(map[string]auth.Credential)
-	ns.storage["localhost:2333"] = auth.Credential{Username: "test_user", Password: "test_word"}
-	ns.storage["https://index.docker.io/v1/"] = auth.Credential{Username: "user", Password: "word"}
+	s := &testStore{}
+	s.storage = map[string]auth.Credential{
+		"localhost:2333":              {Username: "test_user", Password: "test_word"},
+		"https://index.docker.io/v1/": {Username: "user", Password: "word"},
+	}
 	tests := []struct {
 		name         string
 		ctx          context.Context
@@ -141,11 +142,11 @@ func TestLogout(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := Logout(tt.ctx, ns, tt.registryName); (err != nil) != tt.wantErr {
+			if err := Logout(tt.ctx, s, tt.registryName); (err != nil) != tt.wantErr {
 				t.Fatalf("Logout() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if ns.storage[tt.registryName] != auth.EmptyCredential {
-				t.Fatalf("Credentials are not deleted")
+			if s.storage[tt.registryName] != auth.EmptyCredential {
+				t.Error("Credentials are not deleted")
 			}
 		})
 	}
