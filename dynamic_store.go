@@ -47,7 +47,7 @@ func (ds *dynamicStore) LoadConfig() error {
 	configFile, err := os.Open(ds.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// the config file can be created when needed
+			// the config file can be created later when needed
 			return nil
 		}
 		return fmt.Errorf("failed to open config file at %s: %w", ds.configPath, err)
@@ -63,8 +63,13 @@ func (ds *dynamicStore) LoadConfig() error {
 
 // StoreOptions provides options for NewStore.
 type StoreOptions struct {
-	// AllowPlaintext allows saving credentials in plaintext in the config file.
-	AllowPlaintext bool
+	// AllowPlaintextSave allows saving credentials in plaintext in the config
+	// file.
+	//   - If AllowPlaintextSave is set to false (default value), Put() will
+	// return an error when native store is not available.
+	//   - If AllowPlaintextSave is set to true, Put() will save credentials in
+	//     plaintext in the config file when native store is not available.
+	AllowPlaintextSave bool
 }
 
 // NewStore returns a store based on given config file.
@@ -131,7 +136,7 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 		if err != nil {
 			return
 		}
-		if !ds.options.AllowPlaintext {
+		if !ds.options.AllowPlaintextSave {
 			ds.fileStore.DisableSave = true
 		}
 	})
