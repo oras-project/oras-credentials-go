@@ -21,11 +21,13 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// Credential returns a Credential() function that can be used by auth.Client.
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
-	return func(ctx context.Context, registry string) (auth.Credential, error) {
-		if registry == "" {
+	return func(ctx context.Context, reg string) (auth.Credential, error) {
+		reg = mapHostname(reg)
+		if reg == "" {
 			return auth.EmptyCredential, nil
 		}
-		return store.Get(ctx, registry)
+		return store.Get(ctx, reg)
 	}
 }
