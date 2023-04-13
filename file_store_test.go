@@ -549,7 +549,7 @@ func TestStore_Put_disableSave(t *testing.T) {
 	if err != nil {
 		t.Fatal("NewFileStore() error =", err)
 	}
-	fs.DisableSave = true
+	fs.DisablePut = true
 
 	server := "test.example.com"
 	cred := auth.Credential{
@@ -559,7 +559,7 @@ func TestStore_Put_disableSave(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 	err = fs.Put(ctx, server, cred)
-	if wantErr := ErrPlaintextSaveDisabled; !errors.Is(err, wantErr) {
+	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
 		t.Errorf("FileStore.Put() error = %v, wantErr %v", err, wantErr)
 	}
 }

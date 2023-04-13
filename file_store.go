@@ -34,9 +34,9 @@ import (
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
 type FileStore struct {
-	// DisableSave disables saving credentials in plaintext.
-	// If DisableSave is set to true, Put() will return ErrPlaintextSaveDisabled.
-	DisableSave bool
+	// DisablePut disables putting credentials in plaintext.
+	// If DisablePut is set to true, Put() will return ErrPlaintextPutDisabled.
+	DisablePut bool
 
 	// configPath is the path to the config file.
 	configPath string
@@ -57,9 +57,9 @@ const configFieldAuths = "auths"
 var (
 	// ErrInvalidConfigFormat is returned when the config format is invalid.
 	ErrInvalidConfigFormat = errors.New("invalid config format")
-	// ErrPlaintextSaveDisabled is returned by Put() when DisableSave is set
+	// ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
 	// to true.
-	ErrPlaintextSaveDisabled = errors.New("plaintext save is disabled")
+	ErrPlaintextPutDisabled = errors.New("putting plaintext credentials is disabled")
 )
 
 // authConfig contains authorization information for connecting to a Registry.
@@ -155,10 +155,10 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 }
 
 // Put saves credentials into the store for the given server address.
-// Returns ErrPlaintextSaveDisabled if fs.DisableSave is set to true.
+// Returns ErrPlaintextPutDisabled if fs.DisablePut is set to true.
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
-	if fs.DisableSave {
-		return ErrPlaintextSaveDisabled
+	if fs.DisablePut {
+		return ErrPlaintextPutDisabled
 	}
 
 	fs.rwLock.Lock()
@@ -215,17 +215,8 @@ func (fs *FileStore) saveFile() (returnErr error) {
 		}
 	}()
 
-	// handle symlink
-	targetPath := fs.configPath
-	if link, err := os.Readlink(fs.configPath); err == nil {
-		targetPath = link
-	}
-	// copy file with original ownership and permissions
-	if err := ioutil.CopyFilePermissions(targetPath, ingest); err != nil {
-		return fmt.Errorf("failed to copy permissions from %s to %s: %w", targetPath, ingest, err)
-	}
-	// overwrite the target file
-	if err := os.Rename(ingest, targetPath); err != nil {
+	// overwrite the config file
+	if err := os.Rename(ingest, fs.configPath); err != nil {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
