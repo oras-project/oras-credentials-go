@@ -17,24 +17,36 @@ package credentials
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
-// Login provides the login functionality with the given credentials.
-func Login(ctx context.Context, store Store, registry remote.Registry, cred auth.Credential) error {
-	registry.Client = &auth.Client{
-		Client:     retry.DefaultClient,
-		Cache:      auth.DefaultCache,
-		Credential: auth.StaticCredential(registry.Reference.Registry, cred),
+// Login provides the login functionality with the given credentials. A local client is used
+// to keep the original client of the registry intact.
+func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
+	// create a clone of the original registry for login purpose
+	regClone := *reg
+	// we use the original client if applicable, otherwise use a default client
+	var authClient auth.Client
+	if reg.Client == nil {
+		authClient = *auth.DefaultClient
+		authClient.Cache = nil // no cache
+	} else if client, ok := reg.Client.(*auth.Client); ok {
+		authClient = *client
+	} else {
+		return errors.New("client type not supported")
 	}
-	if err := registry.Ping(ctx); err != nil {
-		return fmt.Errorf("unable to login to the registry %s: %w", registry.Reference.Registry, err)
+	regClone.Client = &authClient
+	// update credentials with the client
+	authClient.Credential = auth.StaticCredential(reg.Reference.Registry, cred)
+	// login and store credential
+	if err := regClone.Ping(ctx); err != nil {
+		return fmt.Errorf("unable to login to the registry %s: %w", regClone.Reference.Registry, err)
 	}
-	hostname := mapHostname(registry.Reference.Registry)
+	hostname := mapHostname(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
 		return fmt.Errorf("unable to store the credential for %s: %w", hostname, err)
 	}

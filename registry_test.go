@@ -46,6 +46,7 @@ func (t *testStore) Put(ctx context.Context, serverAddress string, cred auth.Cre
 }
 
 func (t *testStore) Delete(ctx context.Context, serverAddress string) error {
+	delete(t.storage, serverAddress)
 	return nil
 }
 
@@ -61,48 +62,46 @@ func TestLogin(t *testing.T) {
 	}))
 	defer ts.Close()
 	uri, _ := url.Parse(ts.URL)
-
+	reg, err := remote.NewRegistry(uri.Host)
+	if err != nil {
+		t.Fatalf("cannot create test registry: %v", err)
+	}
+	reg.PlainHTTP = true
 	// create a test store
 	ns := &testStore{}
 	tests := []struct {
 		name     string
 		ctx      context.Context
-		registry string
+		registry *remote.Registry
 		cred     auth.Credential
 		wantErr  bool
 	}{
 		{
+			name:     "login succeeds",
+			ctx:      context.Background(),
+			registry: reg,
+			cred:     auth.Credential{Username: testUsername, Password: testPassword},
+			wantErr:  false,
+		},
+		{
 			name:     "login fails (incorrect password)",
 			ctx:      context.Background(),
-			registry: uri.Host,
+			registry: reg,
 			cred:     auth.Credential{Username: testUsername, Password: "whatever"},
 			wantErr:  true,
 		},
 		{
 			name:     "login fails (nil context makes remote.Ping fails)",
 			ctx:      nil,
-			registry: uri.Host,
+			registry: reg,
 			cred:     auth.Credential{Username: testUsername, Password: testPassword},
 			wantErr:  true,
-		},
-		{
-			name:     "login succeeds",
-			ctx:      context.Background(),
-			registry: uri.Host,
-			cred:     auth.Credential{Username: testUsername, Password: testPassword},
-			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// create test registry
-			reg, err := remote.NewRegistry(tt.registry)
-			if err != nil {
-				t.Fatalf("cannot create test registry: %v", err)
-			}
-			reg.PlainHTTP = true
 			// login to test registry
-			err = Login(tt.ctx, ns, *reg, tt.cred)
+			err := Login(tt.ctx, ns, reg, tt.cred)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Login() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -112,6 +111,7 @@ func TestLogin(t *testing.T) {
 			if got := ns.storage[reg.Reference.Registry]; !reflect.DeepEqual(got, tt.cred) {
 				t.Fatalf("Stored credential = %v, want %v", got, tt.cred)
 			}
+			ns.Delete(tt.ctx, reg.Reference.Registry)
 		})
 	}
 }
