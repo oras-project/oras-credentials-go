@@ -63,13 +63,13 @@ func (ds *dynamicStore) LoadConfig() error {
 
 // StoreOptions provides options for NewStore.
 type StoreOptions struct {
-	// AllowPlaintextSave allows saving credentials in plaintext in the config
+	// AllowPlaintextPut allows saving credentials in plaintext in the config
 	// file.
-	//   - If AllowPlaintextSave is set to false (default value), Put() will
-	// return an error when native store is not available.
-	//   - If AllowPlaintextSave is set to true, Put() will save credentials in
+	//   - If AllowPlaintextPut is set to false (default value), Put() will
+	//     return an error when native store is not available.
+	//   - If AllowPlaintextPut is set to true, Put() will save credentials in
 	//     plaintext in the config file when native store is not available.
-	AllowPlaintextSave bool
+	AllowPlaintextPut bool
 }
 
 // NewStore returns a store based on given config file.
@@ -95,6 +95,8 @@ func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Cre
 }
 
 // Put saves credentials into the store for the given server address.
+// Returns ErrPlaintextPutDisabled if native store is not available and
+// StoreOptions.AllowPlaintextPut is set to false.
 func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
 	store, err := ds.getStore(serverAddress)
 	if err != nil {
@@ -136,8 +138,8 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 		if err != nil {
 			return
 		}
-		if !ds.options.AllowPlaintextSave {
-			ds.fileStore.DisableSave = true
+		if !ds.options.AllowPlaintextPut {
+			ds.fileStore.DisablePut = true
 		}
 	})
 	if err != nil {
