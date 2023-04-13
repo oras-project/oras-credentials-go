@@ -24,8 +24,10 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// Login provides the login functionality with the given credentials. A local client is used
-// to keep the original client of the registry intact.
+// Login provides the login functionality with the given credentials. The target
+// registry's client should be nil or of type *auth.Client. Login uses
+// a client local to the function and will not modify the original client of
+// the registry.
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
 	// create a clone of the original registry for login purpose
 	regClone := *reg
