@@ -30,9 +30,8 @@ func Ingest(dir string, content io.Reader) (path string, ingestErr error) {
 	}
 	path = tempFile.Name()
 	defer func() {
-		if err := tempFile.Close(); err != nil {
+		if err := tempFile.Close(); err != nil && ingestErr == nil {
 			ingestErr = fmt.Errorf("failed to close ingest file: %w", err)
-			return
 		}
 		// remove the temp file in case of error.
 		if ingestErr != nil {
