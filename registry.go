@@ -64,6 +64,17 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 	return nil
 }
 
+// Credential returns a Credential() function that can be used by auth.Client.
+func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
+	return func(ctx context.Context, reg string) (auth.Credential, error) {
+		reg = mapHostname(reg)
+		if reg == "" {
+			return auth.EmptyCredential, nil
+		}
+		return store.Get(ctx, reg)
+	}
+}
+
 func mapHostname(hostname string) string {
 	// The Docker CLI expects that the 'docker.io' credential
 	// will be added under the key "https://index.docker.io/v1/"

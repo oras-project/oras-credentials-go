@@ -159,20 +159,64 @@ func Test_mapHostname(t *testing.T) {
 		want string
 	}{
 		{
-			"map docker.io to https://index.docker.io/v1/",
-			"docker.io",
-			"https://index.docker.io/v1/",
+			name: "map docker.io to https://index.docker.io/v1/",
+			host: "docker.io",
+			want: "https://index.docker.io/v1/",
 		},
 		{
-			"do not map other host names",
-			"localhost:2333",
-			"localhost:2333",
+			name: "do not map other host names",
+			host: "localhost:2333",
+			want: "localhost:2333",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mapHostname(tt.host); got != tt.want {
 				t.Errorf("mapHostname() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCredential(t *testing.T) {
+	// create a test store
+	s := &testStore{}
+	s.storage = map[string]auth.Credential{
+		"localhost:2333":              {Username: "test_user", Password: "test_word"},
+		"https://index.docker.io/v1/": {Username: "user", Password: "word"},
+	}
+	// create a test client using Credential
+	testClient := &auth.Client{}
+	testClient.Credential = Credential(s)
+	tests := []struct {
+		name           string
+		registry       string
+		wantCredential auth.Credential
+	}{
+		{
+			name:           "get credentials for localhost:2333",
+			registry:       "localhost:2333",
+			wantCredential: auth.Credential{Username: "test_user", Password: "test_word"},
+		},
+		{
+			name:           "get credentials for docker.io",
+			registry:       "docker.io",
+			wantCredential: auth.Credential{Username: "user", Password: "word"},
+		},
+		{
+			name:           "get credentials for a registry not stored",
+			registry:       "localhost:6666",
+			wantCredential: auth.EmptyCredential,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := testClient.Credential(context.Background(), tt.registry)
+			if err != nil {
+				t.Fatalf("could not get credential: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.wantCredential) {
+				t.Errorf("Credential() = %v, want %v", got, tt.wantCredential)
 			}
 		})
 	}
