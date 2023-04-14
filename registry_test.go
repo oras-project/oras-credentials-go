@@ -204,6 +204,11 @@ func TestCredential(t *testing.T) {
 			wantCredential: auth.Credential{Username: "user", Password: "word"},
 		},
 		{
+			name:           "get credentials for registry-1.docker.io",
+			registry:       "registry-1.docker.io",
+			wantCredential: auth.Credential{Username: "user", Password: "word"},
+		},
+		{
 			name:           "get credentials for a registry not stored",
 			registry:       "localhost:6666",
 			wantCredential: auth.EmptyCredential,

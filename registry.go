@@ -76,9 +76,10 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 }
 
 func mapHostname(hostname string) string {
-	// The Docker CLI expects that the 'docker.io' credential
-	// will be added under the key "https://index.docker.io/v1/"
-	if hostname == "docker.io" {
+	// The Docker CLI expects that the 'docker.io' and
+	// registry-1.docker.io credential will be added
+	// under the key "https://index.docker.io/v1/"
+	if hostname == "docker.io" || hostname == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
 	}
 	return hostname
