@@ -17,13 +17,17 @@ package credentials
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/oras-project/oras-credentials-go/internal/ioutil"
+	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 type config struct {
@@ -56,6 +60,41 @@ type authConfig struct {
 
 	Username string `json:"username,omitempty"` // legacy field for compatibility
 	Password string `json:"password,omitempty"` // legacy field for compatibility
+}
+
+// configFieldAuths is the "auths" field in the config file.
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
+const configFieldAuths = "auths"
+
+// ErrInvalidConfigFormat is returned when the config format is invalid.
+var ErrInvalidConfigFormat = errors.New("invalid config format")
+
+// newAuthConfig creates an authConfig based on cred.
+func newAuthConfig(cred auth.Credential) authConfig {
+	return authConfig{
+		Auth:          encodeAuth(cred.Username, cred.Password),
+		IdentityToken: cred.RefreshToken,
+		RegistryToken: cred.AccessToken,
+	}
+}
+
+// Credential returns an auth.Credential based on ac.
+func (ac authConfig) Credential() (auth.Credential, error) {
+	cred := auth.Credential{
+		Username:     ac.Username,
+		Password:     ac.Password,
+		RefreshToken: ac.IdentityToken,
+		AccessToken:  ac.RegistryToken,
+	}
+	if ac.Auth != "" {
+		var err error
+		// override username and password
+		cred.Username, cred.Password, err = decodeAuth(ac.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("failed to decode auth field: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	return cred, nil
 }
 
 func loadConfigFile(configPath string) (*config, error) {
@@ -166,4 +205,30 @@ func (cfg *config) saveFile() (returnErr error) {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
+}
+
+// encodeAuth base64-encodes username and password into base64(username:password).
+func encodeAuth(username, password string) string {
+	if username == "" && password == "" {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+}
+
+// decodeAuth decodes a base64 encoded string and returns username and password.
+func decodeAuth(authStr string) (username string, password string, err error) {
+	if authStr == "" {
+		return "", "", nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(authStr)
+	if err != nil {
+		return "", "", err
+	}
+	decodedStr := string(decoded)
+	username, password, ok := strings.Cut(decodedStr, ":")
+	if !ok {
+		return "", "", fmt.Errorf("auth '%s' does not conform the base64(username:password) format", decodedStr)
+	}
+	return username, password, nil
 }
