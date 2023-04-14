@@ -106,12 +106,11 @@ func Test_dynamicStore_getHelperSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds := &dynamicStore{
-				configPath: tt.configPath,
+			cfg, err := loadConfigFile(tt.configPath)
+			if err != nil {
+				t.Fatal("loadConfigFile() error =", err)
 			}
-			if err := ds.LoadConfig(); err != nil {
-				t.Fatal("dynamicStore.LoadConfig() error =", err)
-			}
+			ds := &dynamicStore{config: cfg}
 			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
 				t.Errorf("dynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
 			}
@@ -148,12 +147,11 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds := &dynamicStore{
-				configPath: tt.configPath,
+			cfg, err := loadConfigFile(tt.configPath)
+			if err != nil {
+				t.Fatal("loadConfigFile() error =", err)
 			}
-			if err := ds.LoadConfig(); err != nil {
-				t.Fatal("dynamicStore.LoadConfig() error =", err)
-			}
+			ds := &dynamicStore{config: cfg}
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
@@ -184,25 +182,16 @@ func Test_dynamicStore_getStore_fileStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds := &dynamicStore{
-				configPath: tt.configPath,
+			cfg, err := loadConfigFile(tt.configPath)
+			if err != nil {
+				t.Fatal("loadConfigFile() error =", err)
 			}
-			if err := ds.LoadConfig(); err != nil {
-				t.Fatal("dynamicStore.LoadConfig() error =", err)
-			}
+			ds := &dynamicStore{config: cfg}
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
 			}
-			if gotStore != ds.fileStore {
-				t.Errorf("gotStore is not a file store")
-			}
-			// get again, the same file store should be returned
-			gotStore, err = ds.getStore(tt.serverAddress)
-			if err != nil {
-				t.Fatal("dynamicStore.getStore() error =", err)
-			}
-			if gotStore != ds.fileStore {
+			if _, ok := gotStore.(*FileStore); !ok {
 				t.Errorf("gotStore is not a file store")
 			}
 		})

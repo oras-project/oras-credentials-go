@@ -17,10 +17,6 @@ package credentials
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"sync"
 
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -35,30 +31,8 @@ type credentialConfig struct {
 // dynamicStore dynamically determines which store to use based on the settings
 // in the config file.
 type dynamicStore struct {
-	credentialConfig
-	configPath    string
-	options       StoreOptions
-	fileStore     *FileStore
-	fileStoreOnce sync.Once
-}
-
-// LoadConfig loads the config file for ds.
-func (ds *dynamicStore) LoadConfig() error {
-	configFile, err := os.Open(ds.configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// the config file can be created later when needed
-			return nil
-		}
-		return fmt.Errorf("failed to open config file at %s: %w", ds.configPath, err)
-	}
-	defer configFile.Close()
-
-	// decode credential config if the config file exists
-	if err := json.NewDecoder(configFile).Decode(&ds.credentialConfig); err != nil {
-		return fmt.Errorf("failed to decode config file at %s: %w: %v", ds.configPath, ErrInvalidConfigFormat, err)
-	}
-	return nil
+	config  *config
+	options StoreOptions
 }
 
 // StoreOptions provides options for NewStore.
@@ -74,15 +48,15 @@ type StoreOptions struct {
 
 // NewStore returns a store based on given config file.
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
-	ds := &dynamicStore{
-		configPath: configPath,
-		options:    opts,
-	}
-
-	if err := ds.LoadConfig(); err != nil {
+	cfg, err := loadConfigFile(configPath)
+	if err != nil {
 		return nil, err
 	}
-	return ds, nil
+
+	return &dynamicStore{
+		config:  cfg,
+		options: opts,
+	}, nil
 }
 
 // Get retrieves credentials from the store for the given server address.
@@ -118,11 +92,11 @@ func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error 
 // address.
 func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 	// 1. Look for a server-specific credential helper first
-	if helper := ds.CredentialHelpers[serverAddress]; helper != "" {
+	if helper := ds.config.CredentialHelpers[serverAddress]; helper != "" {
 		return helper
 	}
 	// 2. Then look for the configured native store
-	return ds.CredentialsStore
+	return ds.config.CredentialsStore
 }
 
 // getStore returns a store for the given server address.
@@ -131,19 +105,5 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 		return NewNativeStore(helper), nil
 	}
 
-	// lazy loading file store when no native store is available
-	var err error
-	ds.fileStoreOnce.Do(func() {
-		ds.fileStore, err = NewFileStore(ds.configPath)
-		if err != nil {
-			return
-		}
-		if !ds.options.AllowPlaintextPut {
-			ds.fileStore.DisablePut = true
-		}
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize file store: %w", err)
-	}
-	return ds.fileStore, nil
+	return newFileStore(ds.config)
 }

@@ -45,6 +45,10 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	return &FileStore{config: cfg}, nil
 }
 
+func newFileStore(cfg *config) (*FileStore, error) {
+	return &FileStore{config: cfg}, nil
+}
+
 // Get retrieves credentials from the store for the given server address.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
 	authCfg, err := fs.config.getAuthConfig(serverAddress)

@@ -30,6 +30,9 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// TODO: detect default store
+// TODO: save creds store
+
 type config struct {
 	// Path is the path to the config file.
 	Path string
@@ -62,9 +65,13 @@ type authConfig struct {
 	Password string `json:"password,omitempty"` // legacy field for compatibility
 }
 
-// configFieldAuths is the "auths" field in the config file.
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
-const configFieldAuths = "auths"
+const (
+	// configFieldAuths is the "auths" field in the config file.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
+	configFieldAuths             = "auths"
+	configFieldCredentialsStore  = "credsStore"
+	configFieldCredentialHelpers = "credHelpers"
+)
 
 // ErrInvalidConfigFormat is returned when the config format is invalid.
 var ErrInvalidConfigFormat = errors.New("invalid config format")
@@ -115,15 +122,25 @@ func loadConfigFile(configPath string) (*config, error) {
 	if err := json.NewDecoder(configFile).Decode(&cfg.Content); err != nil {
 		return nil, fmt.Errorf("failed to decode config file at %s: %w: %v", configPath, ErrInvalidConfigFormat, err)
 	}
-	authsBytes, ok := cfg.Content[configFieldAuths]
-	if !ok {
-		// init auths cache
+
+	if credsStoreBytes, ok := cfg.Content[configFieldCredentialsStore]; ok {
+		if err := json.Unmarshal(credsStoreBytes, &cfg.CredentialsStore); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal creds store field: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	if credHelpersBytes, ok := cfg.Content[configFieldCredentialHelpers]; ok {
+		if err := json.Unmarshal(credHelpersBytes, &cfg.CredentialHelpers); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal cred helpers field: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	}
+	if authsBytes, ok := cfg.Content[configFieldAuths]; ok {
+		if err := json.Unmarshal(authsBytes, &cfg.AuthsCache); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal auths field: %w: %v", ErrInvalidConfigFormat, err)
+		}
+	} else {
 		cfg.AuthsCache = make(map[string]json.RawMessage)
-		return cfg, nil
 	}
-	if err := json.Unmarshal(authsBytes, &cfg.AuthsCache); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal auths field: %w: %v", ErrInvalidConfigFormat, err)
-	}
+
 	return cfg, nil
 }
 
