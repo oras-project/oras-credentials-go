@@ -213,7 +213,7 @@ func TestCredential(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := testClient.Credential(context.Background(), tt.registry)
 			if err != nil {
-				t.Fatalf("could not get credential: %v", err)
+				t.Errorf("could not get credential: %v", err)
 			}
 			if !reflect.DeepEqual(got, tt.wantCredential) {
 				t.Errorf("Credential() = %v, want %v", got, tt.wantCredential)
