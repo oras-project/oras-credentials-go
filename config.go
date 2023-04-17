@@ -31,7 +31,7 @@ import (
 )
 
 // TODO: detect default store
-// TODO: save creds store
+// TODO: do we need to set cred helpers?
 
 type config struct {
 	CredentialsStore  string            `json:"credsStore,omitempty"`
@@ -192,6 +192,18 @@ func (cfg *config) isAuthConfigured() bool {
 
 func (cfg *config) saveFile() (returnErr error) {
 	// marshal content
+	credHelpersBytes, err := json.Marshal(cfg.CredentialHelpers)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cred helpers: %w", err)
+	}
+	cfg.content[configFieldCredentialHelpers] = credHelpersBytes
+
+	credsStoreBytes, err := json.Marshal(cfg.CredentialsStore)
+	if err != nil {
+		return fmt.Errorf("failed to marshal creds store: %w", err)
+	}
+	cfg.content[configFieldCredentialsStore] = credsStoreBytes
+
 	authsBytes, err := json.Marshal(cfg.authsCache)
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
