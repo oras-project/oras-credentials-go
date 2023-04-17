@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -29,7 +30,7 @@ type FileStore struct {
 	// If DisablePut is set to true, Put() will return ErrPlaintextPutDisabled.
 	DisablePut bool
 
-	config *config
+	config *config.Config
 }
 
 // ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
@@ -38,20 +39,20 @@ var ErrPlaintextPutDisabled = errors.New("putting plaintext credentials is disab
 
 // NewFileStore creates a new file credentials store.
 func NewFileStore(configPath string) (*FileStore, error) {
-	cfg, err := loadConfigFile(configPath)
+	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 	return &FileStore{config: cfg}, nil
 }
 
-func newFileStore(cfg *config) (*FileStore, error) {
+func newFileStore(cfg *config.Config) (*FileStore, error) {
 	return &FileStore{config: cfg}, nil
 }
 
 // Get retrieves credentials from the store for the given server address.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	authCfg, err := fs.config.getAuthConfig(serverAddress)
+	authCfg, err := fs.config.GetAuthConfig(serverAddress)
 	if err != nil {
 		return auth.EmptyCredential, err
 	}
@@ -65,11 +66,11 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 		return ErrPlaintextPutDisabled
 	}
 
-	authCfg := newAuthConfig(cred)
-	return fs.config.putAuthConfig(serverAddress, authCfg)
+	authCfg := config.NewAuthConfig(cred)
+	return fs.config.PutAuthConfig(serverAddress, authCfg)
 }
 
 // Delete removes credentials from the store for the given server address.
 func (fs *FileStore) Delete(_ context.Context, serverAddress string) error {
-	return fs.config.deleteAuthConfig(serverAddress)
+	return fs.config.DeleteAuthConfig(serverAddress)
 }

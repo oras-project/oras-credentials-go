@@ -18,6 +18,7 @@ package credentials
 import (
 	"context"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -31,7 +32,7 @@ type credentialConfig struct {
 // dynamicStore dynamically determines which store to use based on the settings
 // in the config file.
 type dynamicStore struct {
-	config  *config
+	config  *config.Config
 	options StoreOptions
 }
 
@@ -48,7 +49,7 @@ type StoreOptions struct {
 
 // NewStore returns a store based on given config file.
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
-	cfg, err := loadConfigFile(configPath)
+	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
 		return nil, err
 	}

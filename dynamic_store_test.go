@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -106,9 +107,9 @@ func Test_dynamicStore_getHelperSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := loadConfigFile(tt.configPath)
+			cfg, err := config.LoadConfigFile(tt.configPath)
 			if err != nil {
-				t.Fatal("loadConfigFile() error =", err)
+				t.Fatal("config.LoadConfigFile() error =", err)
 			}
 			ds := &dynamicStore{config: cfg}
 			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
@@ -147,9 +148,9 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := loadConfigFile(tt.configPath)
+			cfg, err := config.LoadConfigFile(tt.configPath)
 			if err != nil {
-				t.Fatal("loadConfigFile() error =", err)
+				t.Fatal("config.LoadConfigFile() error =", err)
 			}
 			ds := &dynamicStore{config: cfg}
 			gotStore, err := ds.getStore(tt.serverAddress)
@@ -182,9 +183,9 @@ func Test_dynamicStore_getStore_fileStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := loadConfigFile(tt.configPath)
+			cfg, err := config.LoadConfigFile(tt.configPath)
 			if err != nil {
-				t.Fatal("loadConfigFile() error =", err)
+				t.Fatal("config.LoadConfigFile() error =", err)
 			}
 			ds := &dynamicStore{config: cfg}
 			gotStore, err := ds.getStore(tt.serverAddress)

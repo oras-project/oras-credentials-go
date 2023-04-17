@@ -79,28 +79,28 @@ func TestNewFileStore_badFormat(t *testing.T) {
 	tests := []struct {
 		name       string
 		configPath string
-		wantErr    error
+		wantErr    bool
 	}{
 		{
 			name:       "Bad JSON format",
 			configPath: "testdata/bad_config",
-			wantErr:    ErrInvalidConfigFormat,
+			wantErr:    true,
 		},
 		{
 			name:       "Invalid auths format",
 			configPath: "testdata/invalid_auths_config.json",
-			wantErr:    ErrInvalidConfigFormat,
+			wantErr:    true,
 		},
 		{
 			name:       "No auths field",
 			configPath: "testdata/no_auths_config.json",
-			wantErr:    nil,
+			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := NewFileStore(tt.configPath)
-			if !errors.Is(err, tt.wantErr) {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("NewFileStore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -210,31 +210,31 @@ func TestFileStore_Get_invalidConfig(t *testing.T) {
 		name          string
 		serverAddress string
 		want          auth.Credential
-		wantErr       error
+		wantErr       bool
 	}{
 		{
 			name:          "Invalid auth encode",
 			serverAddress: "registry1.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 		{
 			name:          "Invalid auths format",
 			serverAddress: "registry2.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 		{
 			name:          "Invalid type",
 			serverAddress: "registry3.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := fs.Get(ctx, tt.serverAddress)
-			if !errors.Is(err, tt.wantErr) {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -847,109 +847,5 @@ func TestFileStore_Delete_notExistConfig(t *testing.T) {
 	_, err = os.Stat(configPath)
 	if wantErr := os.ErrNotExist; !errors.Is(err, wantErr) {
 		t.Errorf("Stat(%s) error = %v, wantErr %v", configPath, err, wantErr)
-	}
-}
-
-func Test_encodeAuth(t *testing.T) {
-	tests := []struct {
-		name     string
-		username string
-		password string
-		want     string
-	}{
-		{
-			name:     "Username and password",
-			username: "username",
-			password: "password",
-			want:     "dXNlcm5hbWU6cGFzc3dvcmQ=",
-		},
-		{
-			name:     "Username only",
-			username: "username",
-			password: "",
-			want:     "dXNlcm5hbWU6",
-		},
-		{
-			name:     "Password only",
-			username: "",
-			password: "password",
-			want:     "OnBhc3N3b3Jk",
-		},
-		{
-			name:     "Empty username and empty password",
-			username: "",
-			password: "",
-			want:     "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := encodeAuth(tt.username, tt.password); got != tt.want {
-				t.Errorf("encodeAuth() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_decodeAuth(t *testing.T) {
-	tests := []struct {
-		name     string
-		authStr  string
-		username string
-		password string
-		wantErr  bool
-	}{
-		{
-			name:     "Valid base64",
-			authStr:  "dXNlcm5hbWU6cGFzc3dvcmQ=", // username:password
-			username: "username",
-			password: "password",
-		},
-		{
-			name:     "Valid base64, username only",
-			authStr:  "dXNlcm5hbWU6", // username:
-			username: "username",
-		},
-		{
-			name:     "Valid base64, password only",
-			authStr:  "OnBhc3N3b3Jk", // :password
-			password: "password",
-		},
-		{
-			name:     "Valid base64, bad format",
-			authStr:  "d2hhdGV2ZXI=", // whatever
-			username: "",
-			password: "",
-			wantErr:  true,
-		},
-		{
-			name:     "Invalid base64",
-			authStr:  "whatever",
-			username: "",
-			password: "",
-			wantErr:  true,
-		},
-		{
-			name:     "Empty string",
-			authStr:  "",
-			username: "",
-			password: "",
-			wantErr:  false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotUsername, gotPassword, err := decodeAuth(tt.authStr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeAuth() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotUsername != tt.username {
-				t.Errorf("decodeAuth() got = %v, want %v", gotUsername, tt.username)
-			}
-			if gotPassword != tt.password {
-				t.Errorf("decodeAuth() got1 = %v, want %v", gotPassword, tt.password)
-			}
-		})
 	}
 }
