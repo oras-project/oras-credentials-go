@@ -22,13 +22,6 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// credentialConfig contains the config fields related to credentials.
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L28-L29
-type credentialConfig struct {
-	CredentialsStore  string            `json:"credsStore,omitempty"`
-	CredentialHelpers map[string]string `json:"credHelpers,omitempty"`
-}
-
 // dynamicStore dynamically determines which store to use based on the settings
 // in the config file.
 type dynamicStore struct {
@@ -106,5 +99,10 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 		return NewNativeStore(helper), nil
 	}
 
-	return newFileStore(ds.config)
+	fs, err := newFileStore(ds.config)
+	if err != nil {
+		return nil, err
+	}
+	fs.DisablePut = !ds.options.AllowPlaintextPut
+	return fs, nil
 }

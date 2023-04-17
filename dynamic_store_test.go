@@ -17,12 +17,22 @@ package credentials
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
-	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
+
+func Test_dynamicStore_interface(t *testing.T) {
+	var ds interface{} = &dynamicStore{}
+	if _, ok := ds.(Store); !ok {
+		t.Error("&dynamicStore{} does not conform Store")
+	}
+}
 
 func Test_dynamicStore_Get_fileStore(t *testing.T) {
 	ctx := context.Background()
@@ -58,6 +68,74 @@ func Test_dynamicStore_Get_fileStore(t *testing.T) {
 				t.Errorf("dynamicStore.Get() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_dynamicStore_Put_AllowPlainTextPut(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	serverAddr := "newtest.example.com"
+	cred := auth.Credential{
+		Username: "username",
+		Password: "password",
+	}
+	ctx := context.Background()
+
+	cfg := testConfig{
+		AuthConfigs: map[string]testAuthConfig{
+			"test.example.com": {},
+		},
+		SomeConfigField: 123,
+	}
+	jsonStr, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	// test default option
+	ds, err := NewStore(configPath, StoreOptions{})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+	err = ds.Put(ctx, serverAddr, cred)
+	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
+		t.Errorf("dynamicStore.Put() error = %v, wantErr %v", err, wantErr)
+	}
+
+	// test AllowPlainTextPut = true
+	ds, err = NewStore(configPath, StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+	if err := ds.Put(ctx, serverAddr, cred); err != nil {
+		t.Error("dynamicStore.Put() error =", err)
+	}
+
+	// verify config file
+	configFile, err := os.Open(configPath)
+	if err != nil {
+		t.Fatalf("failed to open config file: %v", err)
+	}
+	defer configFile.Close()
+	var gotCfg testConfig
+	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
+		t.Fatalf("failed to decode config file: %v", err)
+	}
+	wantCfg := testConfig{
+		AuthConfigs: map[string]testAuthConfig{
+			"test.example.com": {},
+			serverAddr: {
+				Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",
+			},
+		},
+		SomeConfigField: cfg.SomeConfigField,
+	}
+	if !reflect.DeepEqual(gotCfg, wantCfg) {
+		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
 	}
 }
 
@@ -107,11 +185,14 @@ func Test_dynamicStore_getHelperSuffix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.LoadConfigFile(tt.configPath)
+			store, err := NewStore(tt.configPath, StoreOptions{})
 			if err != nil {
-				t.Fatal("config.LoadConfigFile() error =", err)
+				t.Fatal("NewStore() error =", err)
 			}
-			ds := &dynamicStore{config: cfg}
+			ds, ok := store.(*dynamicStore)
+			if !ok {
+				t.Fatal("Store is not a dynamicStore")
+			}
 			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
 				t.Errorf("dynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
 			}
@@ -148,11 +229,14 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.LoadConfigFile(tt.configPath)
+			store, err := NewStore(tt.configPath, StoreOptions{})
 			if err != nil {
-				t.Fatal("config.LoadConfigFile() error =", err)
+				t.Fatal("NewStore() error =", err)
 			}
-			ds := &dynamicStore{config: cfg}
+			ds, ok := store.(*dynamicStore)
+			if !ok {
+				t.Fatal("Store is not a dynamicStore")
+			}
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
@@ -183,17 +267,34 @@ func Test_dynamicStore_getStore_fileStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.LoadConfigFile(tt.configPath)
+			store, err := NewStore(tt.configPath, StoreOptions{})
 			if err != nil {
-				t.Fatal("config.LoadConfigFile() error =", err)
+				t.Fatal("NewStore() error =", err)
 			}
-			ds := &dynamicStore{config: cfg}
+			ds, ok := store.(*dynamicStore)
+			if !ok {
+				t.Fatal("Store is not a dynamicStore")
+			}
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
 			}
-			if _, ok := gotStore.(*FileStore); !ok {
+			gotFS1, ok := gotStore.(*FileStore)
+			if !ok {
 				t.Errorf("gotStore is not a file store")
+			}
+
+			// get again, the two file stores should be based on the same config instance
+			gotStore, err = ds.getStore(tt.serverAddress)
+			if err != nil {
+				t.Fatal("dynamicStore.getStore() error =", err)
+			}
+			gotFS2, ok := gotStore.(*FileStore)
+			if !ok {
+				t.Errorf("gotStore is not a file store")
+			}
+			if gotFS1.config != gotFS2.config {
+				t.Errorf("gotFS1 and gotFS2 are not based on the same config")
 			}
 		})
 	}
