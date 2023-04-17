@@ -63,6 +63,8 @@ func (m *testCommand) Output() ([]byte, error) {
 			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
 		case bearerAuthHost:
 			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
+		case "registry2.example.com":
+			return []byte(`{"Username": "", "Secret": ""}`), nil // empty credential
 		default:
 			return []byte("program failed"), errCommandExited
 		}
