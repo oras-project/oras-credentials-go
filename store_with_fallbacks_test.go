@@ -24,17 +24,14 @@ import (
 )
 
 func TestStoreWithFallbacks(t *testing.T) {
-	ns := &NativeStore{
-		programFunc: testCommandFn,
-	}
-	fs, err := NewFileStore("testdata/valid_auths_config.json")
-	if err != nil {
-		t.Fatal("NewFileStore() error =", err)
-	}
-	sf := NewStoreWithFallbacks(ns, fs)
-
-	// Put
-	err = sf.Put(context.Background(), "localhost:2333", auth.Credential{Username: testUsername, Password: testPassword})
+	// Initialize a StoreWithFallbacks
+	primaryStore := &testStore{}
+	firstFallbackStore := &testStore{}
+	secondFallbackStore := &testStore{}
+	secondFallbackStore.Put(context.Background(), "localhost:6666", auth.Credential{RefreshToken: "identity_token"})
+	sf := NewStoreWithFallbacks(primaryStore, firstFallbackStore, secondFallbackStore)
+	// Put an entry into the primary store
+	err := sf.Put(context.Background(), "localhost:2333", auth.Credential{Username: testUsername, Password: testPassword})
 	if err != nil {
 		t.Fatal("sf.Put() error =", err)
 	}
@@ -46,17 +43,25 @@ func TestStoreWithFallbacks(t *testing.T) {
 	if !reflect.DeepEqual(cred, auth.Credential{Username: testUsername, Password: testPassword}) {
 		t.Fatal("incorrect credential from the primary store")
 	}
-	// Get an entry stored in the fallback store
-	cred, err = sf.Get(context.Background(), "registry2.example.com")
+	// Get an entry stored in the second fallback store
+	cred, err = sf.Get(context.Background(), "localhost:6666")
 	if err != nil {
 		t.Fatal("sf.Get() error =", err)
 	}
 	if !reflect.DeepEqual(cred, auth.Credential{RefreshToken: "identity_token"}) {
-		t.Fatal("incorrect credential from the backup store")
+		t.Fatal("incorrect credential from the second backup store")
 	}
-	// Delete
+	// Delete the entry stored in the primary store
 	err = sf.Delete(context.Background(), "localhost:2333")
 	if err != nil {
 		t.Fatal("sf.Delete() error =", err)
+	}
+	// Check if the entry is deleted
+	cred, err = sf.Get(context.Background(), "localhost:2333")
+	if err != nil {
+		t.Fatal("sf.Get() error =", err)
+	}
+	if !reflect.DeepEqual(cred, auth.EmptyCredential) {
+		t.Fatal("incorrect credential after the delete")
 	}
 }

@@ -23,30 +23,21 @@ import (
 
 // StoreWithFallbacks is a store that has multiple fallback stores.
 type StoreWithFallbacks struct {
-	primaryStore   Store
-	fallbackStores []Store
+	stores []Store
 }
 
 // NewStoreWithFallbacks returns a new store based on the given stores.
 // The second and the subsequent stores will be used as fallbacks for the first store.
 func NewStoreWithFallbacks(store Store, fallbacks ...Store) Store {
 	return &StoreWithFallbacks{
-		primaryStore:   store,
-		fallbackStores: fallbacks,
+		stores: append([]Store{store}, fallbacks...),
 	}
 }
 
 // Get retrieves credentials from the store for the given server.
 func (sf *StoreWithFallbacks) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
-	cred, err := sf.primaryStore.Get(ctx, serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
-	if cred != auth.EmptyCredential {
-		return cred, nil
-	}
-	for _, s := range sf.fallbackStores {
-		cred, err = s.Get(ctx, serverAddress)
+	for _, s := range sf.stores {
+		cred, err := s.Get(ctx, serverAddress)
 		if err != nil {
 			return auth.EmptyCredential, err
 		}
@@ -59,10 +50,10 @@ func (sf *StoreWithFallbacks) Get(ctx context.Context, serverAddress string) (au
 
 // Put saves credentials into the store.
 func (sf *StoreWithFallbacks) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	return sf.primaryStore.Put(ctx, serverAddress, cred)
+	return sf.stores[0].Put(ctx, serverAddress, cred)
 }
 
 // Delete removes credentials from the store for the given server.
 func (sf *StoreWithFallbacks) Delete(ctx context.Context, serverAddress string) error {
-	return sf.primaryStore.Delete(ctx, serverAddress)
+	return sf.stores[0].Delete(ctx, serverAddress)
 }
