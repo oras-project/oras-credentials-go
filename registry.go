@@ -79,15 +79,16 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 // will be added under the key "https://index.docker.io/v1/"
 func getLoginRegistry(hostname string) string {
 	if hostname == "docker.io" {
-		return "https://index.docker.io/v1/" // Login用的
+		return "https://index.docker.io/v1/"
 	}
 	return hostname
 }
 
-// The behavior
+// It is expected that the traffic targetting "registry-1.docker.io"
+// will be redirected to "https://index.docker.io/v1/"
 func getTargetRegistry(target string) string {
 	if target == "registry-1.docker.io" {
-		return "https://index.docker.io/v1/" // Credential用的
+		return "https://index.docker.io/v1/"
 	}
 	return target
 }
