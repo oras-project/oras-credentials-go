@@ -17,6 +17,7 @@ package credentials
 
 import (
 	"context"
+	"os/exec"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -45,6 +46,13 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
 		return nil, err
+	}
+	if !cfg.IsAuthConfigured() {
+		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
+			cfg.CredentialsStore = defaultCredsStore
+			// ignore save error
+			cfg.SaveFile()
+		}
 	}
 
 	return &dynamicStore{
@@ -105,4 +113,12 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 	}
 	fs.DisablePut = !ds.options.AllowPlaintextPut
 	return fs, nil
+}
+
+func getDefaultHelperSuffix() string {
+	platformDefault := getPlatformDefaultHelperSuffix()
+	if _, err := exec.LookPath(remoteCredentialsPrefix + platformDefault); err == nil {
+		return platformDefault
+	}
+	return ""
 }

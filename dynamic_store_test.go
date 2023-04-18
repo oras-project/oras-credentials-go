@@ -34,6 +34,40 @@ func Test_dynamicStore_interface(t *testing.T) {
 	}
 }
 
+func Test_dynamicStore_defaultHelper(t *testing.T) {
+	// no auth configured, should use default helper
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "no_auths_config.json")
+	jsonBytes := []byte(`{"auths":{}}`)
+	if err := os.WriteFile(configPath, jsonBytes, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	store, err := NewStore(configPath, StoreOptions{})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+	ds := store.(*dynamicStore)
+	if got := ds.config.CredentialsStore; got == "" {
+		t.Error("dynamicStore.config.CredentialsStore is not set")
+	}
+
+	// auth configured, should not use default helper
+	configPath = filepath.Join(tempDir, "auths_config.json")
+	jsonBytes = []byte(`{"auths":{"xxx":{}}}`)
+	if err := os.WriteFile(configPath, jsonBytes, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	store, err = NewStore(configPath, StoreOptions{})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+	ds = store.(*dynamicStore)
+	if got := ds.config.CredentialsStore; got != "" {
+		t.Errorf("dynamicStore.config.CredentialsStore = %v, want empty", got)
+	}
+}
+
 func Test_dynamicStore_Get_fileStore(t *testing.T) {
 	ctx := context.Background()
 	tests := []struct {
@@ -189,10 +223,7 @@ func Test_dynamicStore_getHelperSuffix(t *testing.T) {
 			if err != nil {
 				t.Fatal("NewStore() error =", err)
 			}
-			ds, ok := store.(*dynamicStore)
-			if !ok {
-				t.Fatal("Store is not a dynamicStore")
-			}
+			ds := store.(*dynamicStore)
 			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
 				t.Errorf("dynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
 			}
@@ -233,10 +264,7 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 			if err != nil {
 				t.Fatal("NewStore() error =", err)
 			}
-			ds, ok := store.(*dynamicStore)
-			if !ok {
-				t.Fatal("Store is not a dynamicStore")
-			}
+			ds := store.(*dynamicStore)
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
@@ -271,10 +299,7 @@ func Test_dynamicStore_getStore_fileStore(t *testing.T) {
 			if err != nil {
 				t.Fatal("NewStore() error =", err)
 			}
-			ds, ok := store.(*dynamicStore)
-			if !ok {
-				t.Fatal("Store is not a dynamicStore")
-			}
+			ds := store.(*dynamicStore)
 			gotStore, err := ds.getStore(tt.serverAddress)
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)

@@ -30,9 +30,6 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// TODO: detect default store
-// TODO: do we need to set cred helpers?
-// TODO: when to store cred store when use default cred store?
 type Config struct {
 	CredentialsStore  string            `json:"credsStore,omitempty"`
 	CredentialHelpers map[string]string `json:"credHelpers,omitempty"`
@@ -169,7 +166,7 @@ func (cfg Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error 
 		return fmt.Errorf("failed to marshal auth field: %w", err)
 	}
 	cfg.authsCache[serverAddress] = authCfgBytes
-	return cfg.saveFile()
+	return cfg.SaveFile()
 }
 
 func (cfg *Config) DeleteAuthConfig(serverAddress string) error {
@@ -181,7 +178,7 @@ func (cfg *Config) DeleteAuthConfig(serverAddress string) error {
 		return nil
 	}
 	delete(cfg.authsCache, serverAddress)
-	return cfg.saveFile()
+	return cfg.SaveFile()
 }
 
 func (cfg *Config) IsAuthConfigured() bool {
@@ -190,19 +187,25 @@ func (cfg *Config) IsAuthConfigured() bool {
 		len(cfg.authsCache) > 0
 }
 
-func (cfg *Config) saveFile() (returnErr error) {
+func (cfg *Config) SaveFile() (returnErr error) {
 	// marshal content
-	credHelpersBytes, err := json.Marshal(cfg.CredentialHelpers)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cred helpers: %w", err)
+	if len(cfg.CredentialHelpers) > 0 {
+		// omit empty
+		credHelpersBytes, err := json.Marshal(cfg.CredentialHelpers)
+		if err != nil {
+			return fmt.Errorf("failed to marshal cred helpers: %w", err)
+		}
+		cfg.content[configFieldCredentialHelpers] = credHelpersBytes
 	}
-	cfg.content[configFieldCredentialHelpers] = credHelpersBytes
 
-	credsStoreBytes, err := json.Marshal(cfg.CredentialsStore)
-	if err != nil {
-		return fmt.Errorf("failed to marshal creds store: %w", err)
+	if cfg.CredentialsStore != "" {
+		// omit empty
+		credsStoreBytes, err := json.Marshal(cfg.CredentialsStore)
+		if err != nil {
+			return fmt.Errorf("failed to marshal creds store: %w", err)
+		}
+		cfg.content[configFieldCredentialsStore] = credsStoreBytes
 	}
-	cfg.content[configFieldCredentialsStore] = credsStoreBytes
 
 	authsBytes, err := json.Marshal(cfg.authsCache)
 	if err != nil {
