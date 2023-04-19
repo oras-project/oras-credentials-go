@@ -34,44 +34,95 @@ func Test_dynamicStore_interface(t *testing.T) {
 	}
 }
 
-func Test_dynamicStore_Get_fileStore(t *testing.T) {
-	ctx := context.Background()
+func Test_dynamicStore(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	authConfiguredPath := filepath.Join(tempDir, "auth_configured.json")
+	config := testConfig{
+		AuthConfigs: map[string]testAuthConfig{
+			"xxx": {},
+		},
+		SomeConfigField: 123,
+	}
+	jsonStr, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(authConfiguredPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	noAuthConfiguredPath := filepath.Join(tempDir, "no_auth_configured.json")
+	config = testConfig{
+		SomeConfigField: 123,
+	}
+	jsonStr, err = json.Marshal(config)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(noAuthConfiguredPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
 	tests := []struct {
-		name          string
-		configPath    string
-		serverAddress string
-		want          auth.Credential
-		wantErr       bool
+		name       string
+		configPath string
 	}{
 		{
-			name:          "registry3.example.com",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry3.example.com",
-			want: auth.Credential{
-				Username: "foo",
-				Password: "bar",
-			},
+			name:       "Authentication configured",
+			configPath: authConfiguredPath,
+		},
+		{
+			name:       "No authentication configured",
+			configPath: noAuthConfiguredPath,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds, err := NewStore(tt.configPath, StoreOptions{})
+			ds, err := NewStore(tt.configPath, StoreOptions{AllowPlaintextPut: true})
 			if err != nil {
 				t.Fatal("NewStore() error =", err)
 			}
-			got, err := ds.Get(ctx, tt.serverAddress)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("dynamicStore.Get() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			serverAddr := "test.example.com"
+			cred := auth.Credential{
+				Username: "username",
+				Password: "password",
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("dynamicStore.Get() = %v, want %v", got, tt.want)
+			ctx := context.Background()
+
+			// test put
+			if err := ds.Put(ctx, serverAddr, cred); err != nil {
+				t.Fatal("dynamicStore.Get() error =", err)
+			}
+
+			// test get
+			got, err := ds.Get(ctx, serverAddr)
+			if err != nil {
+				t.Fatal("dynamicStore.Get() error =", err)
+			}
+			if want := cred; got != want {
+				t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+			}
+
+			// test delete
+			err = ds.Delete(ctx, serverAddr)
+			if err != nil {
+				t.Fatal("dynamicStore.Delete() error =", err)
+			}
+
+			// verify delete
+			got, err = ds.Get(ctx, serverAddr)
+			if err != nil {
+				t.Fatal("dynamicStore.Get() error =", err)
+			}
+			if want := auth.EmptyCredential; got != want {
+				t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
 			}
 		})
 	}
 }
 
-func Test_dynamicStore_Put_AllowPlainTextPut(t *testing.T) {
+func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

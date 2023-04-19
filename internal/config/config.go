@@ -140,7 +140,8 @@ func LoadConfigFile(configPath string) (*Config, error) {
 		if err := json.Unmarshal(credHelpersBytes, &cfg.credentialHelpersCache); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal cred helpers field: %w: %v", ErrInvalidConfigFormat, err)
 		}
-	} else {
+	}
+	if cfg.credentialHelpersCache == nil {
 		cfg.credentialHelpersCache = make(map[string]string)
 	}
 
@@ -148,7 +149,8 @@ func LoadConfigFile(configPath string) (*Config, error) {
 		if err := json.Unmarshal(authsBytes, &cfg.authsCache); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal auths field: %w: %v", ErrInvalidConfigFormat, err)
 		}
-	} else {
+	}
+	if cfg.authsCache == nil {
 		cfg.authsCache = make(map[string]json.RawMessage)
 	}
 
