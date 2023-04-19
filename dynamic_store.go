@@ -17,6 +17,7 @@ package credentials
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
@@ -49,8 +50,9 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	}
 	if !cfg.IsAuthConfigured() {
 		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
-			// ignore save error
-			cfg.PutCredentialsStore(defaultCredsStore)
+			if err := cfg.PutCredentialsStore(defaultCredsStore); err != nil {
+				return nil, fmt.Errorf("failed to detect default creds store: %w", err)
+			}
 		}
 	}
 
