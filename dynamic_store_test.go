@@ -48,7 +48,7 @@ func Test_dynamicStore_defaultHelper(t *testing.T) {
 		t.Fatal("NewStore() error =", err)
 	}
 	ds := store.(*dynamicStore)
-	if got := ds.config.CredentialsStore; got == "" {
+	if got := ds.config.CredentialsStoreCache; got == "" {
 		t.Error("dynamicStore.config.CredentialsStore is not set")
 	}
 
@@ -63,7 +63,7 @@ func Test_dynamicStore_defaultHelper(t *testing.T) {
 		t.Fatal("NewStore() error =", err)
 	}
 	ds = store.(*dynamicStore)
-	if got := ds.config.CredentialsStore; got != "" {
+	if got := ds.config.CredentialsStoreCache; got != "" {
 		t.Errorf("dynamicStore.config.CredentialsStore = %v, want empty", got)
 	}
 }

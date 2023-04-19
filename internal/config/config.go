@@ -30,17 +30,23 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// Config represents a docker configuration file.
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
 type Config struct {
-	CredentialsStore  string            `json:"credsStore,omitempty"`
-	CredentialHelpers map[string]string `json:"credHelpers,omitempty"`
+	// CredentialsStoreCache is a cache of the credsStore field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
+	CredentialsStoreCache string `json:"credsStore,omitempty"`
+	// CredentialHelpersCache is a cache of the credHelpers field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L29
+	CredentialHelpersCache map[string]string `json:"credHelpers,omitempty"`
 
 	// path is the path to the config file.
 	path string
 	// content is the content of the config file.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L17-L45
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
 	content map[string]json.RawMessage
-	// authsCache is a cache of the auths field of the config field.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
+	// authsCache is a cache of the auths field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
 	authsCache map[string]json.RawMessage
 	// rwLock is a read-write-lock for the file store.
 	rwLock sync.RWMutex
@@ -48,8 +54,8 @@ type Config struct {
 
 // AuthConfig contains authorization information for connecting to a Registry.
 // References:
-//   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L17-L45
-//   - https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/types/authconfig.go#L3-L22
+//   - https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L45
+//   - https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/types/authconfig.go#L3-L22
 type AuthConfig struct {
 	// Auth is a base64-encoded string of "{username}:{password}".
 	Auth string `json:"auth,omitempty"`
@@ -65,9 +71,11 @@ type AuthConfig struct {
 
 const (
 	// configFieldAuths is the "auths" field in the config file.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.1/cli/config/configfile/file.go#L19
-	configFieldAuths             = "auths"
-	configFieldCredentialsStore  = "credsStore"
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
+	configFieldAuths = "auths"
+	// configFieldCredentialsStore is the "credsStore" field in the config file.
+	configFieldCredentialsStore = "credsStore"
+	// configFieldCredentialHelpers is the "credHelpers" field in the config file.
 	configFieldCredentialHelpers = "credHelpers"
 )
 
@@ -102,14 +110,16 @@ func (ac AuthConfig) Credential() (auth.Credential, error) {
 	return cred, nil
 }
 
+// LoadConfigFile loads Config from the given config path.
 func LoadConfigFile(configPath string) (*Config, error) {
 	cfg := &Config{path: configPath}
 	configFile, err := os.Open(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// init content map and auths cache if the content file does not exist
+			// init content and caches if the content file does not exist
 			cfg.content = make(map[string]json.RawMessage)
 			cfg.authsCache = make(map[string]json.RawMessage)
+			cfg.CredentialHelpersCache = make(map[string]string)
 			return cfg, nil
 		}
 		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
@@ -122,15 +132,19 @@ func LoadConfigFile(configPath string) (*Config, error) {
 	}
 
 	if credsStoreBytes, ok := cfg.content[configFieldCredentialsStore]; ok {
-		if err := json.Unmarshal(credsStoreBytes, &cfg.CredentialsStore); err != nil {
+		if err := json.Unmarshal(credsStoreBytes, &cfg.CredentialsStoreCache); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal creds store field: %w: %v", ErrInvalidConfigFormat, err)
 		}
 	}
+
 	if credHelpersBytes, ok := cfg.content[configFieldCredentialHelpers]; ok {
-		if err := json.Unmarshal(credHelpersBytes, &cfg.CredentialHelpers); err != nil {
+		if err := json.Unmarshal(credHelpersBytes, &cfg.CredentialHelpersCache); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal cred helpers field: %w: %v", ErrInvalidConfigFormat, err)
 		}
+	} else {
+		cfg.CredentialHelpersCache = make(map[string]string)
 	}
+
 	if authsBytes, ok := cfg.content[configFieldAuths]; ok {
 		if err := json.Unmarshal(authsBytes, &cfg.authsCache); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal auths field: %w: %v", ErrInvalidConfigFormat, err)
@@ -142,7 +156,8 @@ func LoadConfigFile(configPath string) (*Config, error) {
 	return cfg, nil
 }
 
-func (cfg Config) GetAuthConfig(serverAddress string) (AuthConfig, error) {
+// GetAuthConfig returns an AuthConfig for serverAddress.
+func (cfg *Config) GetAuthConfig(serverAddress string) (AuthConfig, error) {
 	cfg.rwLock.RLock()
 	defer cfg.rwLock.RUnlock()
 
@@ -157,7 +172,8 @@ func (cfg Config) GetAuthConfig(serverAddress string) (AuthConfig, error) {
 	return authCfg, nil
 }
 
-func (cfg Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error {
+// PutAuthConfig puts authCfg for serverAddress.
+func (cfg *Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error {
 	cfg.rwLock.Lock()
 	defer cfg.rwLock.Unlock()
 
@@ -169,6 +185,7 @@ func (cfg Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error 
 	return cfg.SaveFile()
 }
 
+// DeleteAuthConfig deletes the corresponding AuthConfig for serverAddress.
 func (cfg *Config) DeleteAuthConfig(serverAddress string) error {
 	cfg.rwLock.Lock()
 	defer cfg.rwLock.Unlock()
@@ -181,30 +198,29 @@ func (cfg *Config) DeleteAuthConfig(serverAddress string) error {
 	return cfg.SaveFile()
 }
 
-func (cfg *Config) IsAuthConfigured() bool {
-	return cfg.CredentialsStore != "" ||
-		len(cfg.CredentialHelpers) > 0 ||
-		len(cfg.authsCache) > 0
-}
-
+// SaveFile saves Config into the file.
 func (cfg *Config) SaveFile() (returnErr error) {
 	// marshal content
-	if len(cfg.CredentialHelpers) > 0 {
-		// omit empty
-		credHelpersBytes, err := json.Marshal(cfg.CredentialHelpers)
-		if err != nil {
-			return fmt.Errorf("failed to marshal cred helpers: %w", err)
-		}
-		cfg.content[configFieldCredentialHelpers] = credHelpersBytes
-	}
-
-	if cfg.CredentialsStore != "" {
-		// omit empty
-		credsStoreBytes, err := json.Marshal(cfg.CredentialsStore)
+	if cfg.CredentialsStoreCache != "" {
+		credsStoreBytes, err := json.Marshal(cfg.CredentialsStoreCache)
 		if err != nil {
 			return fmt.Errorf("failed to marshal creds store: %w", err)
 		}
 		cfg.content[configFieldCredentialsStore] = credsStoreBytes
+	} else {
+		// omit empty
+		delete(cfg.content, configFieldCredentialsStore)
+	}
+
+	if len(cfg.CredentialHelpersCache) > 0 {
+		credHelpersBytes, err := json.Marshal(cfg.CredentialHelpersCache)
+		if err != nil {
+			return fmt.Errorf("failed to marshal cred helpers: %w", err)
+		}
+		cfg.content[configFieldCredentialHelpers] = credHelpersBytes
+	} else {
+		// omit empty
+		delete(cfg.content, configFieldCredentialHelpers)
 	}
 
 	authsBytes, err := json.Marshal(cfg.authsCache)
@@ -238,6 +254,14 @@ func (cfg *Config) SaveFile() (returnErr error) {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
+}
+
+// IsAuthConfigured returns whether there is authentication configured in this
+// config file or not.
+func (cfg *Config) IsAuthConfigured() bool {
+	return cfg.CredentialsStoreCache != "" ||
+		len(cfg.CredentialHelpersCache) > 0 ||
+		len(cfg.authsCache) > 0
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).
