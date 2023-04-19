@@ -48,7 +48,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	if err := regClone.Ping(ctx); err != nil {
 		return fmt.Errorf("unable to ping the registry %s: %w", regClone.Reference.Registry, err)
 	}
-	hostname := getLoginRegistry(regClone.Reference.Registry)
+	hostname := mapStoreRegistryName(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
 		return fmt.Errorf("unable to store the credential for %s: %w", hostname, err)
 	}
@@ -57,7 +57,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 
 // Logout provides the logout functionality given the registry name.
 func Logout(ctx context.Context, store Store, registryName string) error {
-	registryName = getLoginRegistry(registryName)
+	registryName = mapStoreRegistryName(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
 		return fmt.Errorf("unable to delete the credential for %s: %w", registryName, err)
 	}
@@ -67,7 +67,7 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 // Credential returns a Credential() function that can be used by auth.Client.
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
 	return func(ctx context.Context, reg string) (auth.Credential, error) {
-		reg = getTargetRegistry(reg)
+		reg = mapAuthenticationRegistryName(reg)
 		if reg == "" {
 			return auth.EmptyCredential, nil
 		}
@@ -77,16 +77,16 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 
 // The Docker CLI expects that the 'docker.io' credential
 // will be added under the key "https://index.docker.io/v1/"
-func getLoginRegistry(hostname string) string {
-	if hostname == "docker.io" {
+func mapStoreRegistryName(registry string) string {
+	if registry == "docker.io" {
 		return "https://index.docker.io/v1/"
 	}
-	return hostname
+	return registry
 }
 
 // It is expected that the traffic targetting "registry-1.docker.io"
 // will be redirected to "https://index.docker.io/v1/"
-func getTargetRegistry(target string) string {
+func mapAuthenticationRegistryName(target string) string {
 	if target == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
 	}
