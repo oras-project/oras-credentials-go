@@ -15,6 +15,8 @@ limitations under the License.
 
 package credentials
 
+// getPlatformDefaultHelperSuffix returns the platform default credential
+// helper suffix.
 func getPlatformDefaultHelperSuffix() string {
 	return "wincred"
 }

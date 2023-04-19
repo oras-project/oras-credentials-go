@@ -1,3 +1,6 @@
+//go:build !windows && !darwin && !linux
+// +build !windows,!darwin,!linux
+
 /*
 Copyright The ORAS Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,5 +21,5 @@ package credentials
 // getPlatformDefaultHelperSuffix returns the platform default credential
 // helper suffix.
 func getPlatformDefaultHelperSuffix() string {
-	return "osxkeychain"
+	return ""
 }

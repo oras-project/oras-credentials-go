@@ -17,6 +17,8 @@ package credentials
 
 import "os/exec"
 
+// getPlatformDefaultHelperSuffix returns the platform default credential
+// helper suffix.
 func getPlatformDefaultHelperSuffix() string {
 	if _, err := exec.LookPath("pass"); err == nil {
 		return "pass"

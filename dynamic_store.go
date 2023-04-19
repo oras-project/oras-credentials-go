@@ -49,9 +49,8 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	}
 	if !cfg.IsAuthConfigured() {
 		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
-			cfg.CredentialsStoreCache = defaultCredsStore
 			// ignore save error
-			cfg.SaveFile()
+			cfg.PutCredentialsStore(defaultCredsStore)
 		}
 	}
 
@@ -94,11 +93,11 @@ func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error 
 // address.
 func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 	// 1. Look for a server-specific credential helper first
-	if helper := ds.config.CredentialHelpersCache[serverAddress]; helper != "" {
+	if helper := ds.config.GetCredentialHelpers(serverAddress); helper != "" {
 		return helper
 	}
 	// 2. Then look for the configured native store
-	return ds.config.CredentialsStoreCache
+	return ds.config.GetCredentialsStore()
 }
 
 // getStore returns a store for the given server address.
@@ -115,6 +114,7 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 	return fs, nil
 }
 
+// getDefaultHelperSuffix returns the default credential helper suffix.
 func getDefaultHelperSuffix() string {
 	platformDefault := getPlatformDefaultHelperSuffix()
 	if _, err := exec.LookPath(remoteCredentialsPrefix + platformDefault); err == nil {
