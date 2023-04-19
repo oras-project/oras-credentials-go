@@ -53,11 +53,7 @@ func newFileStore(cfg *config.Config) (*FileStore, error) {
 
 // Get retrieves credentials from the store for the given server address.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	authCfg, err := fs.config.GetAuthConfig(serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
-	return authCfg.Credential()
+	return fs.config.GetCredential(serverAddress)
 }
 
 // Put saves credentials into the store for the given server address.
@@ -67,11 +63,10 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 		return ErrPlaintextPutDisabled
 	}
 
-	authCfg := config.NewAuthConfig(cred)
-	return fs.config.PutAuthConfig(serverAddress, authCfg)
+	return fs.config.PutCredential(serverAddress, cred)
 }
 
 // Delete removes credentials from the store for the given server address.
 func (fs *FileStore) Delete(_ context.Context, serverAddress string) error {
-	return fs.config.DeleteAuthConfig(serverAddress)
+	return fs.config.DeleteCredential(serverAddress)
 }

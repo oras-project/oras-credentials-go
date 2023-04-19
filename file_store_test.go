@@ -540,7 +540,7 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	}
 }
 
-func TestStore_Put_disableSave(t *testing.T) {
+func TestStore_Put_disablePut(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()

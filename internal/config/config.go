@@ -155,27 +155,28 @@ func LoadConfigFile(configPath string) (*Config, error) {
 	return cfg, nil
 }
 
-// GetAuthConfig returns an AuthConfig for serverAddress.
-func (cfg *Config) GetAuthConfig(serverAddress string) (AuthConfig, error) {
+// GetAuthConfig returns an auth.Credential for serverAddress.
+func (cfg *Config) GetCredential(serverAddress string) (auth.Credential, error) {
 	cfg.rwLock.RLock()
 	defer cfg.rwLock.RUnlock()
 
 	authCfgBytes, ok := cfg.authsCache[serverAddress]
 	if !ok {
-		return AuthConfig{}, nil
+		return auth.EmptyCredential, nil
 	}
 	var authCfg AuthConfig
 	if err := json.Unmarshal(authCfgBytes, &authCfg); err != nil {
-		return AuthConfig{}, fmt.Errorf("failed to unmarshal auth field: %w: %v", ErrInvalidConfigFormat, err)
+		return auth.EmptyCredential, fmt.Errorf("failed to unmarshal auth field: %w: %v", ErrInvalidConfigFormat, err)
 	}
-	return authCfg, nil
+	return authCfg.Credential()
 }
 
-// PutAuthConfig puts authCfg for serverAddress.
-func (cfg *Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error {
+// PutAuthConfig puts cred for serverAddress.
+func (cfg *Config) PutCredential(serverAddress string, cred auth.Credential) error {
 	cfg.rwLock.Lock()
 	defer cfg.rwLock.Unlock()
 
+	authCfg := NewAuthConfig(cred)
 	authCfgBytes, err := json.Marshal(authCfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth field: %w", err)
@@ -184,8 +185,8 @@ func (cfg *Config) PutAuthConfig(serverAddress string, authCfg AuthConfig) error
 	return cfg.saveFile()
 }
 
-// DeleteAuthConfig deletes the corresponding AuthConfig for serverAddress.
-func (cfg *Config) DeleteAuthConfig(serverAddress string) error {
+// DeleteAuthConfig deletes the corresponding credential for serverAddress.
+func (cfg *Config) DeleteCredential(serverAddress string) error {
 	cfg.rwLock.Lock()
 	defer cfg.rwLock.Unlock()
 
