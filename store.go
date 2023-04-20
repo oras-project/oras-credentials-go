@@ -55,7 +55,7 @@ type StoreOptions struct {
 // native store will be used.
 //   - Windows: "wincred"
 //   - Linux: "pass" or "secretservice"
-//   - MacOS: "osxkeychain"
+//   - macOS: "osxkeychain"
 //
 // Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 func NewStore(configPath string, opts StoreOptions) (Store, error) {

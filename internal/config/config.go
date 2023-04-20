@@ -216,13 +216,7 @@ func (cfg *Config) saveFile() (returnErr error) {
 		delete(cfg.content, configFieldCredentialsStore)
 	}
 
-	if len(cfg.credentialHelpers) > 0 {
-		credHelpersBytes, err := json.Marshal(cfg.credentialHelpers)
-		if err != nil {
-			return fmt.Errorf("failed to marshal cred helpers: %w", err)
-		}
-		cfg.content[configFieldCredentialHelpers] = credHelpersBytes
-	}
+	// skip saving credentialHelpers as it's never set
 
 	authsBytes, err := json.Marshal(cfg.authsCache)
 	if err != nil {
