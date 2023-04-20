@@ -43,12 +43,12 @@ type Config struct {
 	// authsCache is a cache of the auths field of the config.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
 	authsCache map[string]json.RawMessage
-	// credentialsStoreCache is a cache of the credsStore field of the config.
+	// credentialsStore is the credsStore field of the config.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
-	credentialsStoreCache string
-	// credentialHelpersCache is a cache of the credHelpers field of the config.
+	credentialsStore string
+	// credentialHelpers is the credHelpers field of the config.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L29
-	credentialHelpersCache map[string]string
+	credentialHelpers map[string]string
 }
 
 // AuthConfig contains authorization information for connecting to a Registry.
@@ -118,7 +118,6 @@ func LoadConfigFile(configPath string) (*Config, error) {
 			// init content and caches if the content file does not exist
 			cfg.content = make(map[string]json.RawMessage)
 			cfg.authsCache = make(map[string]json.RawMessage)
-			cfg.credentialHelpersCache = make(map[string]string)
 			return cfg, nil
 		}
 		return nil, fmt.Errorf("failed to open config file at %s: %w", configPath, err)
@@ -131,18 +130,15 @@ func LoadConfigFile(configPath string) (*Config, error) {
 	}
 
 	if credsStoreBytes, ok := cfg.content[configFieldCredentialsStore]; ok {
-		if err := json.Unmarshal(credsStoreBytes, &cfg.credentialsStoreCache); err != nil {
+		if err := json.Unmarshal(credsStoreBytes, &cfg.credentialsStore); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal creds store field: %w: %v", ErrInvalidConfigFormat, err)
 		}
 	}
 
 	if credHelpersBytes, ok := cfg.content[configFieldCredentialHelpers]; ok {
-		if err := json.Unmarshal(credHelpersBytes, &cfg.credentialHelpersCache); err != nil {
+		if err := json.Unmarshal(credHelpersBytes, &cfg.credentialHelpers); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal cred helpers field: %w: %v", ErrInvalidConfigFormat, err)
 		}
-	}
-	if cfg.credentialHelpersCache == nil {
-		cfg.credentialHelpersCache = make(map[string]string)
 	}
 
 	if authsBytes, ok := cfg.content[configFieldAuths]; ok {
@@ -200,9 +196,9 @@ func (cfg *Config) DeleteCredential(serverAddress string) error {
 	return cfg.saveFile()
 }
 
-// GetCredentialHelpers returns the credential helpers for serverAddress.
-func (cfg *Config) GetCredentialHelpers(serverAddress string) string {
-	return cfg.credentialHelpersCache[serverAddress]
+// GetCredentialHelper returns the credential helpers for serverAddress.
+func (cfg *Config) GetCredentialHelper(serverAddress string) string {
+	return cfg.credentialHelpers[serverAddress]
 }
 
 // GetCredentialHelpers returns the configured credentials store.
@@ -210,7 +206,7 @@ func (cfg *Config) GetCredentialsStore() string {
 	cfg.rwLock.RLock()
 	defer cfg.rwLock.RUnlock()
 
-	return cfg.credentialsStoreCache
+	return cfg.credentialsStore
 }
 
 // PutCredentialsStore puts the configured credentials store.
@@ -218,15 +214,15 @@ func (cfg *Config) PutCredentialsStore(credsStore string) error {
 	cfg.rwLock.Lock()
 	defer cfg.rwLock.Unlock()
 
-	cfg.credentialsStoreCache = credsStore
+	cfg.credentialsStore = credsStore
 	return cfg.saveFile()
 }
 
 // saveFile saves Config into the file.
 func (cfg *Config) saveFile() (returnErr error) {
 	// marshal content
-	if cfg.credentialsStoreCache != "" {
-		credsStoreBytes, err := json.Marshal(cfg.credentialsStoreCache)
+	if cfg.credentialsStore != "" {
+		credsStoreBytes, err := json.Marshal(cfg.credentialsStore)
 		if err != nil {
 			return fmt.Errorf("failed to marshal creds store: %w", err)
 		}
@@ -236,8 +232,8 @@ func (cfg *Config) saveFile() (returnErr error) {
 		delete(cfg.content, configFieldCredentialsStore)
 	}
 
-	if len(cfg.credentialHelpersCache) > 0 {
-		credHelpersBytes, err := json.Marshal(cfg.credentialHelpersCache)
+	if len(cfg.credentialHelpers) > 0 {
+		credHelpersBytes, err := json.Marshal(cfg.credentialHelpers)
 		if err != nil {
 			return fmt.Errorf("failed to marshal cred helpers: %w", err)
 		}
@@ -283,8 +279,8 @@ func (cfg *Config) saveFile() (returnErr error) {
 // IsAuthConfigured returns whether there is authentication configured in this
 // config file or not.
 func (cfg *Config) IsAuthConfigured() bool {
-	return cfg.credentialsStoreCache != "" ||
-		len(cfg.credentialHelpersCache) > 0 ||
+	return cfg.credentialsStore != "" ||
+		len(cfg.credentialHelpers) > 0 ||
 		len(cfg.authsCache) > 0
 }
 

@@ -95,7 +95,7 @@ func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error 
 // address.
 func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 	// 1. Look for a server-specific credential helper first
-	if helper := ds.config.GetCredentialHelpers(serverAddress); helper != "" {
+	if helper := ds.config.GetCredentialHelper(serverAddress); helper != "" {
 		return helper
 	}
 	// 2. Then look for the configured native store
