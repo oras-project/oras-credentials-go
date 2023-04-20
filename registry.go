@@ -75,20 +75,20 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 	}
 }
 
-// The Docker CLI expects that the 'docker.io' credential
-// will be added under the key "https://index.docker.io/v1/"
 func mapStoreRegistryName(registry string) string {
+	// The Docker CLI expects that the 'docker.io' credential
+	// will be added under the key "https://index.docker.io/v1/"
 	if registry == "docker.io" {
 		return "https://index.docker.io/v1/"
 	}
 	return registry
 }
 
-// It is expected that the traffic targetting "registry-1.docker.io"
-// will be redirected to "https://index.docker.io/v1/"
-func mapAuthenticationRegistryName(target string) string {
-	if target == "registry-1.docker.io" {
+func mapAuthenticationRegistryName(hostname string) string {
+	// It is expected that the traffic targetting "registry-1.docker.io"
+	// will be redirected to "https://index.docker.io/v1/"
+	if hostname == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
 	}
-	return target
+	return hostname
 }
