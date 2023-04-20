@@ -37,22 +37,17 @@ type storeWithFallbacks struct {
 }
 
 // NewStoreWithFallbacks returns a new store based on the given stores.
-// The first store is used as the primary store. The second and the
-// subsequent stores will be used as fallbacks for the first store.
-//   - Get() retrieves credentials from the StoreWithFallbacks for
-//     the given server. It searches the primary and the fallback stores
-//     for the credentials of serverAddress and returns when it finds the
+//   - Get() searches the primary and the fallback stores
+//     for the credentials and returns when it finds the
 //     credentials in any of the stores.
-//   - Put() saves credentials into the StoreWithFallbacks. It puts
-//     the credentials into the primary store.
-//   - Delete() removes credentials from the StoreWithFallbacks for the
-//     given server. It deletes the credentials from the primary store.
-func NewStoreWithFallbacks(store Store, fallbacks ...Store) Store {
+//   - Put() saves the credentials into the primary store.
+//   - Delete() deletes the credentials from the primary store.
+func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
 	if len(fallbacks) == 0 {
-		return store
+		return primary
 	}
 	return &storeWithFallbacks{
-		stores: append([]Store{store}, fallbacks...),
+		stores: append([]Store{primary}, fallbacks...),
 	}
 }
 
