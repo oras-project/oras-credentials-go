@@ -43,12 +43,12 @@ func NewFileStore(configPath string) (*FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newFileStore(cfg)
+	return newFileStore(cfg), nil
 }
 
 // newFileStore creates a file credentials store based on the given config instance.
-func newFileStore(cfg *config.Config) (*FileStore, error) {
-	return &FileStore{config: cfg}, nil
+func newFileStore(cfg *config.Config) *FileStore {
+	return &FileStore{config: cfg}
 }
 
 // Get retrieves credentials from the store for the given server address.

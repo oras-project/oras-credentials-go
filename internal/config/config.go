@@ -202,20 +202,13 @@ func (cfg *Config) GetCredentialHelper(serverAddress string) string {
 }
 
 // GetCredentialHelpers returns the configured credentials store.
-func (cfg *Config) GetCredentialsStore() string {
-	cfg.rwLock.RLock()
-	defer cfg.rwLock.RUnlock()
-
+func (cfg *Config) CredentialsStore() string {
 	return cfg.credentialsStore
 }
 
-// PutCredentialsStore puts the configured credentials store.
-func (cfg *Config) PutCredentialsStore(credsStore string) error {
-	cfg.rwLock.Lock()
-	defer cfg.rwLock.Unlock()
-
+// SetCredentialsStore puts the configured credentials store.
+func (cfg *Config) SetCredentialsStore(credsStore string) {
 	cfg.credentialsStore = credsStore
-	return cfg.saveFile()
 }
 
 // saveFile saves Config into the file.

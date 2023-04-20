@@ -17,8 +17,6 @@ package credentials
 
 import (
 	"context"
-	"fmt"
-	"os/exec"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -50,9 +48,7 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	}
 	if !cfg.IsAuthConfigured() {
 		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
-			if err := cfg.PutCredentialsStore(defaultCredsStore); err != nil {
-				return nil, fmt.Errorf("failed to detect default creds store: %w", err)
-			}
+			cfg.SetCredentialsStore(defaultCredsStore)
 		}
 	}
 
@@ -99,7 +95,7 @@ func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 		return helper
 	}
 	// 2. Then look for the configured native store
-	return ds.config.GetCredentialsStore()
+	return ds.config.CredentialsStore()
 }
 
 // getStore returns a store for the given server address.
@@ -108,19 +104,7 @@ func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
 		return NewNativeStore(helper), nil
 	}
 
-	fs, err := newFileStore(ds.config)
-	if err != nil {
-		return nil, err
-	}
+	fs := newFileStore(ds.config)
 	fs.DisablePut = !ds.options.AllowPlaintextPut
 	return fs, nil
-}
-
-// getDefaultHelperSuffix returns the default credential helper suffix.
-func getDefaultHelperSuffix() string {
-	platformDefault := getPlatformDefaultHelperSuffix()
-	if _, err := exec.LookPath(remoteCredentialsPrefix + platformDefault); err == nil {
-		return platformDefault
-	}
-	return ""
 }
