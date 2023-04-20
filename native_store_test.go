@@ -101,14 +101,14 @@ func testCommandFn(args ...string) client.Program {
 }
 
 func TestNativeStore_interface(t *testing.T) {
-	var ns interface{} = &NativeStore{}
+	var ns interface{} = &nativeStore{}
 	if _, ok := ns.(Store); !ok {
 		t.Error("&NativeStore{} does not conform Store")
 	}
 }
 
 func TestNativeStore_basicAuth(t *testing.T) {
-	ns := &NativeStore{
+	ns := &nativeStore{
 		programFunc: testCommandFn,
 	}
 	// Put
@@ -135,7 +135,7 @@ func TestNativeStore_basicAuth(t *testing.T) {
 }
 
 func TestNativeStore_refreshToken(t *testing.T) {
-	ns := &NativeStore{
+	ns := &nativeStore{
 		programFunc: testCommandFn,
 	}
 	// Put
