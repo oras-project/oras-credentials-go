@@ -48,7 +48,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	if err := regClone.Ping(ctx); err != nil {
 		return fmt.Errorf("unable to ping the registry %s: %w", regClone.Reference.Registry, err)
 	}
-	hostname := mapHostname(regClone.Reference.Registry)
+	hostname := mapStoreRegistryName(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
 		return fmt.Errorf("unable to store the credential for %s: %w", hostname, err)
 	}
@@ -57,17 +57,39 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 
 // Logout provides the logout functionality given the registry name.
 func Logout(ctx context.Context, store Store, registryName string) error {
-	registryName = mapHostname(registryName)
+	registryName = mapStoreRegistryName(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
 		return fmt.Errorf("unable to delete the credential for %s: %w", registryName, err)
 	}
 	return nil
 }
 
-func mapHostname(hostname string) string {
+// Credential returns a Credential() function that can be used by auth.Client.
+func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
+	return func(ctx context.Context, reg string) (auth.Credential, error) {
+		reg = mapAuthenticationRegistryName(reg)
+		if reg == "" {
+			return auth.EmptyCredential, nil
+		}
+		return store.Get(ctx, reg)
+	}
+}
+
+func mapStoreRegistryName(registry string) string {
 	// The Docker CLI expects that the 'docker.io' credential
 	// will be added under the key "https://index.docker.io/v1/"
-	if hostname == "docker.io" {
+	// See: https://github.com/moby/moby/blob/v24.0.0-beta.2/registry/config.go#L25-L48
+	if registry == "docker.io" {
+		return "https://index.docker.io/v1/"
+	}
+	return registry
+}
+
+func mapAuthenticationRegistryName(hostname string) string {
+	// It is expected that the traffic targetting "registry-1.docker.io"
+	// will be redirected to "https://index.docker.io/v1/"
+	// See: https://github.com/moby/moby/blob/v24.0.0-beta.2/registry/config.go#L25-L48
+	if hostname == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
 	}
 	return hostname
