@@ -17,6 +17,7 @@ package credentials
 
 // getPlatformDefaultHelperSuffix returns the platform default credential
 // helper suffix.
+// Reference: https://docs.docker.com/engine/reference/commandline/login/#default-behavior
 func getPlatformDefaultHelperSuffix() string {
 	return "wincred"
 }
