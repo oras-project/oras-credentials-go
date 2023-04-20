@@ -286,7 +286,7 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 			if err != nil {
 				t.Fatal("dynamicStore.getStore() error =", err)
 			}
-			if _, ok := gotStore.(*NativeStore); !ok {
+			if _, ok := gotStore.(*nativeStore); !ok {
 				t.Errorf("gotStore is not a native store")
 			}
 		})
