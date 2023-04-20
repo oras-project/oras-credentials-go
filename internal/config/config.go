@@ -33,6 +33,10 @@ import (
 // Config represents a docker configuration file.
 // Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
 type Config struct {
+	// CredentialsStore is the credsStore field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
+	CredentialsStore string
+
 	// path is the path to the config file.
 	path string
 	// rwLock is a read-write-lock for the file store.
@@ -43,9 +47,6 @@ type Config struct {
 	// authsCache is a cache of the auths field of the config.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
 	authsCache map[string]json.RawMessage
-	// credentialsStore is the credsStore field of the config.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
-	credentialsStore string
 	// credentialHelpers is the credHelpers field of the config.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L29
 	credentialHelpers map[string]string
@@ -130,7 +131,7 @@ func LoadConfigFile(configPath string) (*Config, error) {
 	}
 
 	if credsStoreBytes, ok := cfg.content[configFieldCredentialsStore]; ok {
-		if err := json.Unmarshal(credsStoreBytes, &cfg.credentialsStore); err != nil {
+		if err := json.Unmarshal(credsStoreBytes, &cfg.CredentialsStore); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal creds store field: %w: %v", ErrInvalidConfigFormat, err)
 		}
 	}
@@ -201,21 +202,11 @@ func (cfg *Config) GetCredentialHelper(serverAddress string) string {
 	return cfg.credentialHelpers[serverAddress]
 }
 
-// GetCredentialHelpers returns the configured credentials store.
-func (cfg *Config) CredentialsStore() string {
-	return cfg.credentialsStore
-}
-
-// SetCredentialsStore puts the configured credentials store.
-func (cfg *Config) SetCredentialsStore(credsStore string) {
-	cfg.credentialsStore = credsStore
-}
-
 // saveFile saves Config into the file.
 func (cfg *Config) saveFile() (returnErr error) {
 	// marshal content
-	if cfg.credentialsStore != "" {
-		credsStoreBytes, err := json.Marshal(cfg.credentialsStore)
+	if cfg.CredentialsStore != "" {
+		credsStoreBytes, err := json.Marshal(cfg.CredentialsStore)
 		if err != nil {
 			return fmt.Errorf("failed to marshal creds store: %w", err)
 		}
@@ -231,9 +222,6 @@ func (cfg *Config) saveFile() (returnErr error) {
 			return fmt.Errorf("failed to marshal cred helpers: %w", err)
 		}
 		cfg.content[configFieldCredentialHelpers] = credHelpersBytes
-	} else {
-		// omit empty
-		delete(cfg.content, configFieldCredentialHelpers)
 	}
 
 	authsBytes, err := json.Marshal(cfg.authsCache)
@@ -272,7 +260,7 @@ func (cfg *Config) saveFile() (returnErr error) {
 // IsAuthConfigured returns whether there is authentication configured in this
 // config file or not.
 func (cfg *Config) IsAuthConfigured() bool {
-	return cfg.credentialsStore != "" ||
+	return cfg.CredentialsStore != "" ||
 		len(cfg.credentialHelpers) > 0 ||
 		len(cfg.authsCache) > 0
 }

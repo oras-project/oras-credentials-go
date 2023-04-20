@@ -41,6 +41,13 @@ type StoreOptions struct {
 }
 
 // NewStore returns a store based on given config file.
+// If no any authentication is configured in the config file, a platform-default
+// native store will be used.
+//   - Windows: "wincred"
+//   - Linux: "pass" or "secretservice"
+//   - MacOS: "osxkeychain"
+//
+// Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
@@ -48,7 +55,7 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	}
 	if !cfg.IsAuthConfigured() {
 		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
-			cfg.SetCredentialsStore(defaultCredsStore)
+			cfg.CredentialsStore = defaultCredsStore
 		}
 	}
 
@@ -95,7 +102,7 @@ func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 		return helper
 	}
 	// 2. Then look for the configured native store
-	return ds.config.CredentialsStore()
+	return ds.config.CredentialsStore
 }
 
 // getStore returns a store for the given server address.
