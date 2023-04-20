@@ -28,22 +28,22 @@ const (
 	emptyUsername           = "<token>"
 )
 
-// NativeStore implements a credentials store using native keychain to keep
+// nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
-type NativeStore struct {
+type nativeStore struct {
 	programFunc client.ProgramFunc
 }
 
 // NewNativeStore creates a new native store that uses a remote helper program to
 // manage credentials.
 func NewNativeStore(helperSuffix string) Store {
-	return &NativeStore{
+	return &nativeStore{
 		programFunc: client.NewShellProgramFunc(remoteCredentialsPrefix + helperSuffix),
 	}
 }
 
 // Get retrieves credentials from the store for the given server.
-func (ns *NativeStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
+func (ns *nativeStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
 	dockerCred, err := client.Get(ns.programFunc, serverAddress)
 	if err != nil {
@@ -64,7 +64,7 @@ func (ns *NativeStore) Get(_ context.Context, serverAddress string) (auth.Creden
 }
 
 // Put saves credentials into the store.
-func (ns *NativeStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+func (ns *nativeStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	dockerCred := &credentials.Credentials{
 		ServerURL: serverAddress,
 		Username:  cred.Username,
@@ -78,6 +78,6 @@ func (ns *NativeStore) Put(_ context.Context, serverAddress string, cred auth.Cr
 }
 
 // Delete removes credentials from the store for the given server.
-func (ns *NativeStore) Delete(_ context.Context, serverAddress string) error {
+func (ns *nativeStore) Delete(_ context.Context, serverAddress string) error {
 	return client.Erase(ns.programFunc, serverAddress)
 }
