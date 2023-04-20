@@ -58,8 +58,8 @@ type Config struct {
 type AuthConfig struct {
 	// Auth is a base64-encoded string of "{username}:{password}".
 	Auth string `json:"auth,omitempty"`
-	// IdentityToken is used to authenticate the user and get.
-	// an access token for the registry.
+	// IdentityToken is used to authenticate the user and get an access token
+	// for the registry.
 	IdentityToken string `json:"identitytoken,omitempty"`
 	// RegistryToken is a bearer token to be sent to a registry.
 	RegistryToken string `json:"registrytoken,omitempty"`
