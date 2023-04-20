@@ -30,3 +30,51 @@ type Store interface {
 	// Delete removes credentials from the store for the given server address.
 	Delete(ctx context.Context, serverAddress string) error
 }
+
+// storeWithFallbacks is a store that has multiple fallback stores.
+type storeWithFallbacks struct {
+	stores []Store
+}
+
+// NewStoreWithFallbacks returns a new store based on the given stores.
+//   - Get() searches the primary and the fallback stores
+//     for the credentials and returns when it finds the
+//     credentials in any of the stores.
+//   - Put() saves the credentials into the primary store.
+//   - Delete() deletes the credentials from the primary store.
+func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
+	if len(fallbacks) == 0 {
+		return primary
+	}
+	return &storeWithFallbacks{
+		stores: append([]Store{primary}, fallbacks...),
+	}
+}
+
+// Get retrieves credentials from the StoreWithFallbacks for the given server.
+// It searches the primary and the fallback stores for the credentials of serverAddress
+// and returns when it finds the credentials in any of the stores.
+func (sf *storeWithFallbacks) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
+	for _, s := range sf.stores {
+		cred, err := s.Get(ctx, serverAddress)
+		if err != nil {
+			return auth.EmptyCredential, err
+		}
+		if cred != auth.EmptyCredential {
+			return cred, nil
+		}
+	}
+	return auth.EmptyCredential, nil
+}
+
+// Put saves credentials into the StoreWithFallbacks. It puts
+// the credentials into the primary store.
+func (sf *storeWithFallbacks) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
+	return sf.stores[0].Put(ctx, serverAddress, cred)
+}
+
+// Delete removes credentials from the StoreWithFallbacks for the given server.
+// It deletes the credentials from the primary store.
+func (sf *storeWithFallbacks) Delete(ctx context.Context, serverAddress string) error {
+	return sf.stores[0].Delete(ctx, serverAddress)
+}
