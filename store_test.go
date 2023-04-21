@@ -24,22 +24,16 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
-
-type testStoreConfig struct {
-	SomeConfigField   int                       `json:"some_config_field"`
-	AuthConfigs       map[string]testAuthConfig `json:"auths"`
-	CredentialsStore  string                    `json:"credsStore,omitempty"`
-	CredentialHelpers map[string]string         `json:"credHelpers,omitempty"`
-}
 
 func Test_dynamicStore_authConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "auth_configured.json")
-	config := testStoreConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	config := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			"xxx": {},
 		},
 		SomeConfigField: 123,
@@ -98,7 +92,7 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "no_auth_configured.json")
-	cfg := testStoreConfig{
+	cfg := config.TestConfig{
 		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
@@ -177,8 +171,8 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	cfg := testStoreConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			"test.example.com": {},
 		},
 		SomeConfigField: 123,
@@ -216,12 +210,12 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testStoreConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testStoreConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			"test.example.com": {},
 			serverAddr: {
 				Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",

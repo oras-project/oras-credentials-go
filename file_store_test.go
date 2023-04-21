@@ -24,26 +24,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
-
-type testAuthConfig struct {
-	SomeAuthField string `json:"some_auth_field,omitempty"`
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth,omitempty"`
-
-	// IdentityToken is used to authenticate the user and get
-	// an access token for the registry.
-	IdentityToken string `json:"identitytoken,omitempty"`
-	// RegistryToken is a bearer token to be sent to a registry
-	RegistryToken string `json:"registrytoken,omitempty"`
-}
-
-type testConfig struct {
-	SomeConfigField int                       `json:"some_config_field"`
-	AuthConfigs     map[string]testAuthConfig `json:"auths"`
-}
 
 func TestNewFileStore_badPath(t *testing.T) {
 	tempDir := t.TempDir()
@@ -343,12 +326,12 @@ func TestFileStore_Put_notExistConfig(t *testing.T) {
 	}
 	defer configFile.Close()
 
-	var cfg testConfig
+	var cfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&cfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	want := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	want := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: "refresh_token",
@@ -384,8 +367,8 @@ func TestFileStore_Put_addNew(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server1: {
 				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -425,12 +408,12 @@ func TestFileStore_Put_addNew(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server1: {
 				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -474,8 +457,8 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 
 	// prepare test content
 	server := "registry.example.com"
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: {
 				SomeAuthField: "whatever",
 				Username:      "foo",
@@ -513,12 +496,12 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				RegistryToken: "access_token",
@@ -585,8 +568,8 @@ func TestFileStore_Delete(t *testing.T) {
 		AccessToken:  "access_token_2",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server1: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred1.RefreshToken,
@@ -639,12 +622,12 @@ func TestFileStore_Delete(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server2: cfg.AuthConfigs[server2],
 		},
 		SomeConfigField: cfg.SomeConfigField,
@@ -684,8 +667,8 @@ func TestFileStore_Delete_lastConfig(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred.RefreshToken,
@@ -726,12 +709,12 @@ func TestFileStore_Delete_lastConfig(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs:     map[string]testAuthConfig{},
+	wantCfg := config.TestConfig{
+		AuthConfigs:     map[string]config.TestAuthConfig{},
 		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
@@ -761,8 +744,8 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 		RefreshToken: "refresh_token",
 		AccessToken:  "access_token",
 	}
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred.RefreshToken,
@@ -803,12 +786,12 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg config.TestConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := config.TestConfig{
+		AuthConfigs: map[string]config.TestAuthConfig{
 			server: cfg.AuthConfigs[server],
 		},
 		SomeConfigField: cfg.SomeConfigField,

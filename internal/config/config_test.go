@@ -15,9 +15,278 @@ limitations under the License.
 
 package config
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
 
-func Test_encodeAuth(t *testing.T) {
+func TestConfig_IsAuthConfigured(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name             string
+		fileName         string
+		shouldCreateFile bool
+		cfg              TestConfig
+		want             bool
+	}{
+		{
+			name:             "not existing file",
+			fileName:         "config.json",
+			shouldCreateFile: false,
+			cfg:              TestConfig{},
+			want:             false,
+		},
+		{
+			name:             "no auth",
+			fileName:         "config.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				SomeConfigField: 123,
+			},
+			want: false,
+		},
+		{
+			name:             "empty auths exist",
+			fileName:         "empty_auths.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				AuthConfigs: map[string]TestAuthConfig{},
+			},
+			want: false,
+		},
+		{
+			name:             "auths exist, but no credential",
+			fileName:         "no_cred_auths.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				AuthConfigs: map[string]TestAuthConfig{
+					"test.example.com": {},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "auths exist",
+			fileName:         "auths.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				AuthConfigs: map[string]TestAuthConfig{
+					"test.example.com": {
+						Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "credsStore exists",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				CredentialsStore: "teststore",
+			},
+			want: true,
+		},
+		{
+			name:             "empty credHelpers exist",
+			fileName:         "empty_credsStore.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				CredentialHelpers: map[string]string{},
+			},
+			want: false,
+		},
+		{
+			name:             "credHelpers exist",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				CredentialHelpers: map[string]string{
+					"test.example.com": "testhelper",
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "all exist",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: TestConfig{
+				SomeConfigField: 123,
+				AuthConfigs: map[string]TestAuthConfig{
+					"test.example.com": {},
+				},
+				CredentialsStore: "teststore",
+				CredentialHelpers: map[string]string{
+					"test.example.com": "testhelper",
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare test content
+			configPath := filepath.Join(tempDir, tt.fileName)
+			if tt.shouldCreateFile {
+				jsonStr, err := json.Marshal(tt.cfg)
+				if err != nil {
+					t.Fatalf("failed to marshal config: %v", err)
+				}
+				if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+					t.Fatalf("failed to write config file: %v", err)
+				}
+			}
+
+			cfg, err := LoadConfigFile(configPath)
+			if err != nil {
+				t.Fatal("LoadConfigFile() error =", err)
+			}
+			if got := cfg.IsAuthConfigured(); got != tt.want {
+				t.Errorf("IsAuthConfigured() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_saveFile(t *testing.T) {
+	tempDir := t.TempDir()
+	tests := []struct {
+		name             string
+		fileName         string
+		shouldCreateFile bool
+		oldCfg           TestConfig
+		newCfg           TestConfig
+		wantCfg          TestConfig
+	}{
+		{
+			name:     "set credsStore in a non-existing file",
+			fileName: "config.json",
+			oldCfg:   TestConfig{},
+			newCfg: TestConfig{
+				CredentialsStore: "teststore",
+			},
+			wantCfg: TestConfig{
+				AuthConfigs:      make(map[string]TestAuthConfig),
+				CredentialsStore: "teststore",
+			},
+			shouldCreateFile: false,
+		},
+		{
+			name:     "set credsStore in empty file",
+			fileName: "empty.json",
+			oldCfg:   TestConfig{},
+			newCfg: TestConfig{
+				CredentialsStore: "teststore",
+			},
+			wantCfg: TestConfig{
+				AuthConfigs:      make(map[string]TestAuthConfig),
+				CredentialsStore: "teststore",
+			},
+			shouldCreateFile: true,
+		},
+		{
+			name:     "set credsStore in a no-auth-configured file",
+			fileName: "empty.json",
+			oldCfg: TestConfig{
+				SomeConfigField: 123,
+			},
+			newCfg: TestConfig{
+				CredentialsStore: "teststore",
+			},
+			wantCfg: TestConfig{
+				SomeConfigField:  123,
+				AuthConfigs:      make(map[string]TestAuthConfig),
+				CredentialsStore: "teststore",
+			},
+			shouldCreateFile: true,
+		},
+		{
+			name:     "Set credsStore and credHelpers in an auth-configured file",
+			fileName: "auth_configured.json",
+			oldCfg: TestConfig{
+				SomeConfigField: 123,
+				AuthConfigs: map[string]TestAuthConfig{
+					"registry1.example.com": {
+						SomeAuthField: "something",
+						Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
+					},
+				},
+				CredentialsStore: "oldstore",
+				CredentialHelpers: map[string]string{
+					"registry2.example.com": "testhelper",
+				},
+			},
+			newCfg: TestConfig{
+				AuthConfigs:      make(map[string]TestAuthConfig),
+				SomeConfigField:  123,
+				CredentialsStore: "newstore",
+				CredentialHelpers: map[string]string{
+					"xxx": "yyy",
+				},
+			},
+			wantCfg: TestConfig{
+				SomeConfigField: 123,
+				AuthConfigs: map[string]TestAuthConfig{
+					"registry1.example.com": {
+						SomeAuthField: "something",
+						Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
+					},
+				},
+				CredentialsStore: "newstore",
+				CredentialHelpers: map[string]string{
+					"registry2.example.com": "testhelper", // cred helpers will not be updated
+				},
+			},
+			shouldCreateFile: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare test content
+			configPath := filepath.Join(tempDir, tt.fileName)
+			if tt.shouldCreateFile {
+				jsonStr, err := json.Marshal(tt.oldCfg)
+				if err != nil {
+					t.Fatalf("failed to marshal config: %v", err)
+				}
+				if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+					t.Fatalf("failed to write config file: %v", err)
+				}
+			}
+
+			cfg, err := LoadConfigFile(configPath)
+			if err != nil {
+				t.Fatal("LoadConfigFile() error =", err)
+			}
+			cfg.credentialsStore = tt.newCfg.CredentialsStore
+			cfg.credentialHelpers = tt.newCfg.CredentialHelpers
+			if err := cfg.saveFile(); err != nil {
+				t.Fatal("saveFile() error =", err)
+			}
+
+			// verify config file
+			configFile, err := os.Open(configPath)
+			if err != nil {
+				t.Fatalf("failed to open config file: %v", err)
+			}
+			defer configFile.Close()
+			var gotCfg TestConfig
+			if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
+				t.Fatalf("failed to decode config file: %v", err)
+			}
+			if !reflect.DeepEqual(gotCfg, tt.wantCfg) {
+				t.Errorf("Decoded config = %v, want %v", gotCfg, tt.wantCfg)
+			}
+		})
+	}
+}
+
+func TestConfig_encodeAuth(t *testing.T) {
 	tests := []struct {
 		name     string
 		username string
@@ -58,7 +327,7 @@ func Test_encodeAuth(t *testing.T) {
 	}
 }
 
-func Test_decodeAuth(t *testing.T) {
+func TestConfig_decodeAuth(t *testing.T) {
 	tests := []struct {
 		name     string
 		authStr  string
