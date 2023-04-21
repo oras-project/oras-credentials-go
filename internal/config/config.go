@@ -218,6 +218,14 @@ func (cfg *Config) SetCredentialsStore(credsStore string) error {
 	return cfg.saveFile()
 }
 
+// IsAuthConfigured returns whether there is authentication configured in this
+// config file or not.
+func (cfg *Config) IsAuthConfigured() bool {
+	return cfg.credentialsStore != "" ||
+		len(cfg.credentialHelpers) > 0 ||
+		len(cfg.authsCache) > 0
+}
+
 // saveFile saves Config into the file.
 func (cfg *Config) saveFile() (returnErr error) {
 	// marshal content
@@ -265,14 +273,6 @@ func (cfg *Config) saveFile() (returnErr error) {
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 	return nil
-}
-
-// IsAuthConfigured returns whether there is authentication configured in this
-// config file or not.
-func (cfg *Config) IsAuthConfigured() bool {
-	return cfg.credentialsStore != "" ||
-		len(cfg.credentialHelpers) > 0 ||
-		len(cfg.authsCache) > 0
 }
 
 // encodeAuth base64-encodes username and password into base64(username:password).
