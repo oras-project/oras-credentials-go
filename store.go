@@ -71,7 +71,7 @@ type StoreOptions struct {
 //
 // Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
-	cfg, err := config.LoadConfigFile(configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -88,22 +88,14 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 
 // Get retrieves credentials from the store for the given server address.
 func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
-	store, err := ds.getStore(serverAddress)
-	if err != nil {
-		return auth.EmptyCredential, err
-	}
-	return store.Get(ctx, serverAddress)
+	return ds.getStore(serverAddress).Get(ctx, serverAddress)
 }
 
 // Put saves credentials into the store for the given server address.
 // Returns ErrPlaintextPutDisabled if native store is not available and
 // StoreOptions.AllowPlaintextPut is set to false.
 func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
-	store, err := ds.getStore(serverAddress)
-	if err != nil {
-		return err
-	}
-	if err := store.Put(ctx, serverAddress, cred); err != nil {
+	if err := ds.getStore(serverAddress).Put(ctx, serverAddress, cred); err != nil {
 		return err
 	}
 	// save the detected creds store back to the config file on first put
@@ -119,11 +111,7 @@ func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth
 
 // Delete removes credentials from the store for the given server address.
 func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error {
-	store, err := ds.getStore(serverAddress)
-	if err != nil {
-		return err
-	}
-	return store.Delete(ctx, serverAddress)
+	return ds.getStore(serverAddress).Delete(ctx, serverAddress)
 }
 
 // getHelperSuffix returns the credential helper suffix for the given server
@@ -142,14 +130,14 @@ func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 }
 
 // getStore returns a store for the given server address.
-func (ds *dynamicStore) getStore(serverAddress string) (Store, error) {
+func (ds *dynamicStore) getStore(serverAddress string) Store {
 	if helper := ds.getHelperSuffix(serverAddress); helper != "" {
-		return NewNativeStore(helper), nil
+		return NewNativeStore(helper)
 	}
 
 	fs := newFileStore(ds.config)
 	fs.DisablePut = !ds.options.AllowPlaintextPut
-	return fs, nil
+	return fs
 }
 
 // storeWithFallbacks is a store that has multiple fallback stores.

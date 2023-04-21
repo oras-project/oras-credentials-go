@@ -46,7 +46,7 @@ var (
 
 // NewFileStore creates a new file credentials store.
 func NewFileStore(configPath string) (*FileStore, error) {
-	cfg, err := config.LoadConfigFile(configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
 	}

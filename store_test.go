@@ -320,10 +320,7 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 				t.Fatal("NewStore() error =", err)
 			}
 			ds := store.(*dynamicStore)
-			gotStore, err := ds.getStore(tt.serverAddress)
-			if err != nil {
-				t.Fatal("dynamicStore.getStore() error =", err)
-			}
+			gotStore := ds.getStore(tt.serverAddress)
 			if _, ok := gotStore.(*nativeStore); !ok {
 				t.Errorf("gotStore is not a native store")
 			}
@@ -355,20 +352,14 @@ func Test_dynamicStore_getStore_fileStore(t *testing.T) {
 				t.Fatal("NewStore() error =", err)
 			}
 			ds := store.(*dynamicStore)
-			gotStore, err := ds.getStore(tt.serverAddress)
-			if err != nil {
-				t.Fatal("dynamicStore.getStore() error =", err)
-			}
+			gotStore := ds.getStore(tt.serverAddress)
 			gotFS1, ok := gotStore.(*FileStore)
 			if !ok {
 				t.Errorf("gotStore is not a file store")
 			}
 
 			// get again, the two file stores should be based on the same config instance
-			gotStore, err = ds.getStore(tt.serverAddress)
-			if err != nil {
-				t.Fatal("dynamicStore.getStore() error =", err)
-			}
+			gotStore = ds.getStore(tt.serverAddress)
 			gotFS2, ok := gotStore.(*FileStore)
 			if !ok {
 				t.Errorf("gotStore is not a file store")

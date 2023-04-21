@@ -30,26 +30,18 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// Config represents a docker configuration file.
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
-type Config struct {
-	// path is the path to the config file.
-	path string
-	// rwLock is a read-write-lock for the file store.
-	rwLock sync.RWMutex
-	// content is the content of the config file.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
-	content map[string]json.RawMessage
-	// authsCache is a cache of the auths field of the config.
+const (
+	// configFieldAuths is the "auths" field in the config file.
 	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
-	authsCache map[string]json.RawMessage
-	// credentialsStore is the credsStore field of the config.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
-	credentialsStore string
-	// credentialHelpers is the credHelpers field of the config.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L29
-	credentialHelpers map[string]string
-}
+	configFieldAuths = "auths"
+	// configFieldCredentialsStore is the "credsStore" field in the config file.
+	configFieldCredentialsStore = "credsStore"
+	// configFieldCredentialHelpers is the "credHelpers" field in the config file.
+	configFieldCredentialHelpers = "credHelpers"
+)
+
+// ErrInvalidConfigFormat is returned when the config format is invalid.
+var ErrInvalidConfigFormat = errors.New("invalid config format")
 
 // AuthConfig contains authorization information for connecting to a Registry.
 // References:
@@ -67,19 +59,6 @@ type AuthConfig struct {
 	Username string `json:"username,omitempty"` // legacy field for compatibility
 	Password string `json:"password,omitempty"` // legacy field for compatibility
 }
-
-const (
-	// configFieldAuths is the "auths" field in the config file.
-	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
-	configFieldAuths = "auths"
-	// configFieldCredentialsStore is the "credsStore" field in the config file.
-	configFieldCredentialsStore = "credsStore"
-	// configFieldCredentialHelpers is the "credHelpers" field in the config file.
-	configFieldCredentialHelpers = "credHelpers"
-)
-
-// ErrInvalidConfigFormat is returned when the config format is invalid.
-var ErrInvalidConfigFormat = errors.New("invalid config format")
 
 // NewAuthConfig creates an authConfig based on cred.
 func NewAuthConfig(cred auth.Credential) AuthConfig {
@@ -109,8 +88,29 @@ func (ac AuthConfig) Credential() (auth.Credential, error) {
 	return cred, nil
 }
 
-// LoadConfigFile loads Config from the given config path.
-func LoadConfigFile(configPath string) (*Config, error) {
+// Config represents a docker configuration file.
+// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
+type Config struct {
+	// path is the path to the config file.
+	path string
+	// rwLock is a read-write-lock for the file store.
+	rwLock sync.RWMutex
+	// content is the content of the config file.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
+	content map[string]json.RawMessage
+	// authsCache is a cache of the auths field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L19
+	authsCache map[string]json.RawMessage
+	// credentialsStore is the credsStore field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L28
+	credentialsStore string
+	// credentialHelpers is the credHelpers field of the config.
+	// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L29
+	credentialHelpers map[string]string
+}
+
+// Load loads Config from the given config path.
+func Load(configPath string) (*Config, error) {
 	cfg := &Config{path: configPath}
 	configFile, err := os.Open(configPath)
 	if err != nil {
@@ -229,6 +229,7 @@ func (cfg *Config) IsAuthConfigured() bool {
 // saveFile saves Config into the file.
 func (cfg *Config) saveFile() (returnErr error) {
 	// marshal content
+	// credentialHelpers is skipped as it's never set
 	if cfg.credentialsStore != "" {
 		credsStoreBytes, err := json.Marshal(cfg.credentialsStore)
 		if err != nil {
@@ -239,9 +240,6 @@ func (cfg *Config) saveFile() (returnErr error) {
 		// omit empty
 		delete(cfg.content, configFieldCredentialsStore)
 	}
-
-	// skip saving credentialHelpers as it's never set
-
 	authsBytes, err := json.Marshal(cfg.authsCache)
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
