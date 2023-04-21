@@ -286,7 +286,7 @@ func TestConfig_saveFile(t *testing.T) {
 	}
 }
 
-func TestConfig_encodeAuth(t *testing.T) {
+func Test_encodeAuth(t *testing.T) {
 	tests := []struct {
 		name     string
 		username string
@@ -327,7 +327,7 @@ func TestConfig_encodeAuth(t *testing.T) {
 	}
 }
 
-func TestConfig_decodeAuth(t *testing.T) {
+func Test_decodeAuth(t *testing.T) {
 	tests := []struct {
 		name     string
 		authStr  string
