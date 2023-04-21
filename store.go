@@ -54,8 +54,16 @@ type StoreOptions struct {
 	AllowPlaintextPut bool
 }
 
-// NewStore returns a store based on given config file.
-// If no authentication is configured in the config file, a platform-default
+// NewStore returns a Store based on the given configuration file.
+//
+// For Get(), Put() and Delete(), the returned Store will dynamically determine which underlying credentials
+// store to used for the given server address.
+// The  underlying credentials store  is determined in the following order:
+//  1. Native server-specific credential helper
+//  2. Native credentials store
+//  3. The plain-text config file itself
+//
+// If the config file has no authentication information, a platform-default
 // native store will be used.
 //   - Windows: "wincred"
 //   - Linux: "pass" or "secretservice"
