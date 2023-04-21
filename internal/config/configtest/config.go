@@ -13,19 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package configtest
 
-// TestConfig represents the structure of a config file for testing purpose.
-type TestConfig struct {
-	AuthConfigs       map[string]TestAuthConfig `json:"auths"`
-	CredentialsStore  string                    `json:"credsStore,omitempty"`
-	CredentialHelpers map[string]string         `json:"credHelpers,omitempty"`
-	SomeConfigField   int                       `json:"some_config_field"`
+// Config represents the structure of a config file for testing purpose.
+type Config struct {
+	AuthConfigs       map[string]AuthConfig `json:"auths"`
+	CredentialsStore  string                `json:"credsStore,omitempty"`
+	CredentialHelpers map[string]string     `json:"credHelpers,omitempty"`
+	SomeConfigField   int                   `json:"some_config_field"`
 }
 
-// TestAuthConfig represents the structure of the "auths" field of a config file
+// AuthConfig represents the structure of the "auths" field of a config file
 // for testing purpose.
-type TestAuthConfig struct {
+type AuthConfig struct {
 	SomeAuthField string `json:"some_auth_field,omitempty"`
 	Username      string `json:"username,omitempty"`
 	Password      string `json:"password,omitempty"`

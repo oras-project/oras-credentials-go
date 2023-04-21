@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/oras-project/oras-credentials-go/internal/config/configtest"
 )
 
 func TestConfig_IsAuthConfigured(t *testing.T) {
@@ -30,21 +32,21 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 		name             string
 		fileName         string
 		shouldCreateFile bool
-		cfg              TestConfig
+		cfg              configtest.Config
 		want             bool
 	}{
 		{
 			name:             "not existing file",
 			fileName:         "config.json",
 			shouldCreateFile: false,
-			cfg:              TestConfig{},
+			cfg:              configtest.Config{},
 			want:             false,
 		},
 		{
 			name:             "no auth",
 			fileName:         "config.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
+			cfg: configtest.Config{
 				SomeConfigField: 123,
 			},
 			want: false,
@@ -53,8 +55,8 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "empty auths exist",
 			fileName:         "empty_auths.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
-				AuthConfigs: map[string]TestAuthConfig{},
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{},
 			},
 			want: false,
 		},
@@ -62,8 +64,8 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "auths exist, but no credential",
 			fileName:         "no_cred_auths.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
-				AuthConfigs: map[string]TestAuthConfig{
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{
 					"test.example.com": {},
 				},
 			},
@@ -73,8 +75,8 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "auths exist",
 			fileName:         "auths.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
-				AuthConfigs: map[string]TestAuthConfig{
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{
 					"test.example.com": {
 						Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",
 					},
@@ -86,7 +88,7 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "credsStore exists",
 			fileName:         "credsStore.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
+			cfg: configtest.Config{
 				CredentialsStore: "teststore",
 			},
 			want: true,
@@ -95,7 +97,7 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "empty credHelpers exist",
 			fileName:         "empty_credsStore.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
+			cfg: configtest.Config{
 				CredentialHelpers: map[string]string{},
 			},
 			want: false,
@@ -104,7 +106,7 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "credHelpers exist",
 			fileName:         "credsStore.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
+			cfg: configtest.Config{
 				CredentialHelpers: map[string]string{
 					"test.example.com": "testhelper",
 				},
@@ -115,9 +117,9 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 			name:             "all exist",
 			fileName:         "credsStore.json",
 			shouldCreateFile: true,
-			cfg: TestConfig{
+			cfg: configtest.Config{
 				SomeConfigField: 123,
-				AuthConfigs: map[string]TestAuthConfig{
+				AuthConfigs: map[string]configtest.AuthConfig{
 					"test.example.com": {},
 				},
 				CredentialsStore: "teststore",
@@ -159,19 +161,19 @@ func TestConfig_saveFile(t *testing.T) {
 		name             string
 		fileName         string
 		shouldCreateFile bool
-		oldCfg           TestConfig
-		newCfg           TestConfig
-		wantCfg          TestConfig
+		oldCfg           configtest.Config
+		newCfg           configtest.Config
+		wantCfg          configtest.Config
 	}{
 		{
 			name:     "set credsStore in a non-existing file",
 			fileName: "config.json",
-			oldCfg:   TestConfig{},
-			newCfg: TestConfig{
+			oldCfg:   configtest.Config{},
+			newCfg: configtest.Config{
 				CredentialsStore: "teststore",
 			},
-			wantCfg: TestConfig{
-				AuthConfigs:      make(map[string]TestAuthConfig),
+			wantCfg: configtest.Config{
+				AuthConfigs:      make(map[string]configtest.AuthConfig),
 				CredentialsStore: "teststore",
 			},
 			shouldCreateFile: false,
@@ -179,12 +181,12 @@ func TestConfig_saveFile(t *testing.T) {
 		{
 			name:     "set credsStore in empty file",
 			fileName: "empty.json",
-			oldCfg:   TestConfig{},
-			newCfg: TestConfig{
+			oldCfg:   configtest.Config{},
+			newCfg: configtest.Config{
 				CredentialsStore: "teststore",
 			},
-			wantCfg: TestConfig{
-				AuthConfigs:      make(map[string]TestAuthConfig),
+			wantCfg: configtest.Config{
+				AuthConfigs:      make(map[string]configtest.AuthConfig),
 				CredentialsStore: "teststore",
 			},
 			shouldCreateFile: true,
@@ -192,15 +194,15 @@ func TestConfig_saveFile(t *testing.T) {
 		{
 			name:     "set credsStore in a no-auth-configured file",
 			fileName: "empty.json",
-			oldCfg: TestConfig{
+			oldCfg: configtest.Config{
 				SomeConfigField: 123,
 			},
-			newCfg: TestConfig{
+			newCfg: configtest.Config{
 				CredentialsStore: "teststore",
 			},
-			wantCfg: TestConfig{
+			wantCfg: configtest.Config{
 				SomeConfigField:  123,
-				AuthConfigs:      make(map[string]TestAuthConfig),
+				AuthConfigs:      make(map[string]configtest.AuthConfig),
 				CredentialsStore: "teststore",
 			},
 			shouldCreateFile: true,
@@ -208,9 +210,9 @@ func TestConfig_saveFile(t *testing.T) {
 		{
 			name:     "Set credsStore and credHelpers in an auth-configured file",
 			fileName: "auth_configured.json",
-			oldCfg: TestConfig{
+			oldCfg: configtest.Config{
 				SomeConfigField: 123,
-				AuthConfigs: map[string]TestAuthConfig{
+				AuthConfigs: map[string]configtest.AuthConfig{
 					"registry1.example.com": {
 						SomeAuthField: "something",
 						Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -221,17 +223,17 @@ func TestConfig_saveFile(t *testing.T) {
 					"registry2.example.com": "testhelper",
 				},
 			},
-			newCfg: TestConfig{
-				AuthConfigs:      make(map[string]TestAuthConfig),
+			newCfg: configtest.Config{
+				AuthConfigs:      make(map[string]configtest.AuthConfig),
 				SomeConfigField:  123,
 				CredentialsStore: "newstore",
 				CredentialHelpers: map[string]string{
 					"xxx": "yyy",
 				},
 			},
-			wantCfg: TestConfig{
+			wantCfg: configtest.Config{
 				SomeConfigField: 123,
-				AuthConfigs: map[string]TestAuthConfig{
+				AuthConfigs: map[string]configtest.AuthConfig{
 					"registry1.example.com": {
 						SomeAuthField: "something",
 						Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -275,7 +277,7 @@ func TestConfig_saveFile(t *testing.T) {
 				t.Fatalf("failed to open config file: %v", err)
 			}
 			defer configFile.Close()
-			var gotCfg TestConfig
+			var gotCfg configtest.Config
 			if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 				t.Fatalf("failed to decode config file: %v", err)
 			}

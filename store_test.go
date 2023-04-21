@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/oras-project/oras-credentials-go/internal/config"
+	"github.com/oras-project/oras-credentials-go/internal/config/configtest"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -32,8 +32,8 @@ func Test_dynamicStore_authConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "auth_configured.json")
-	config := config.TestConfig{
-		AuthConfigs: map[string]config.TestAuthConfig{
+	config := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			"xxx": {},
 		},
 		SomeConfigField: 123,
@@ -92,7 +92,7 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "no_auth_configured.json")
-	cfg := config.TestConfig{
+	cfg := configtest.Config{
 		SomeConfigField: 123,
 	}
 	jsonStr, err := json.Marshal(cfg)
@@ -171,8 +171,8 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	cfg := config.TestConfig{
-		AuthConfigs: map[string]config.TestAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			"test.example.com": {},
 		},
 		SomeConfigField: 123,
@@ -210,12 +210,12 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg config.TestConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := config.TestConfig{
-		AuthConfigs: map[string]config.TestAuthConfig{
+	wantCfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			"test.example.com": {},
 			serverAddr: {
 				Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",
