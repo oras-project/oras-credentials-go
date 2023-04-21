@@ -18,10 +18,17 @@ package credentials
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
+)
+
+const (
+	dockerConfigFileDir  = ".docker"
+	dockerConfigFileName = "config.json"
 )
 
 // Store is the interface that any credentials store must implement.
@@ -86,6 +93,19 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	return ds, nil
 }
 
+// NewStoreFromDocker returns a Store based on the default docker config file.
+// It will first look for $DOCKER_CONFIG/config.json and then
+// $HOME/.docker/config.json.
+//
+// NewStoreFromDocker internally calls [credentials.NewStore].
+func NewStoreFromDocker(opt StoreOptions) (Store, error) {
+	configPath, err := getDockerConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	return NewStore(configPath, opt)
+}
+
 // Get retrieves credentials from the store for the given server address.
 func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	return ds.getStore(serverAddress).Get(ctx, serverAddress)
@@ -138,6 +158,21 @@ func (ds *dynamicStore) getStore(serverAddress string) Store {
 	fs := newFileStore(ds.config)
 	fs.DisablePut = !ds.options.AllowPlaintextPut
 	return fs
+}
+
+// getDockerConfigPath returns the path to the default docker config file.
+func getDockerConfigPath() (string, error) {
+	// 1. First try the environment variable
+	configDir := os.Getenv("DOCKER_CONFIG")
+	if configDir == "" {
+		// 2. Then try home directory
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		configDir = filepath.Join(homeDir, dockerConfigFileDir)
+	}
+	return filepath.Join(configDir, dockerConfigFileName), nil
 }
 
 // storeWithFallbacks is a store that has multiple fallback stores.
