@@ -24,26 +24,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/oras-project/oras-credentials-go/internal/config/configtest"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
-
-type testAuthConfig struct {
-	SomeAuthField string `json:"some_auth_field,omitempty"`
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth,omitempty"`
-
-	// IdentityToken is used to authenticate the user and get
-	// an access token for the registry.
-	IdentityToken string `json:"identitytoken,omitempty"`
-	// RegistryToken is a bearer token to be sent to a registry
-	RegistryToken string `json:"registrytoken,omitempty"`
-}
-
-type testConfig struct {
-	SomeConfigField int                       `json:"some_config_field"`
-	AuthConfigs     map[string]testAuthConfig `json:"auths"`
-}
 
 func TestNewFileStore_badPath(t *testing.T) {
 	tempDir := t.TempDir()
@@ -79,28 +62,28 @@ func TestNewFileStore_badFormat(t *testing.T) {
 	tests := []struct {
 		name       string
 		configPath string
-		wantErr    error
+		wantErr    bool
 	}{
 		{
 			name:       "Bad JSON format",
 			configPath: "testdata/bad_config",
-			wantErr:    ErrInvalidConfigFormat,
+			wantErr:    true,
 		},
 		{
 			name:       "Invalid auths format",
 			configPath: "testdata/invalid_auths_config.json",
-			wantErr:    ErrInvalidConfigFormat,
+			wantErr:    true,
 		},
 		{
 			name:       "No auths field",
 			configPath: "testdata/no_auths_config.json",
-			wantErr:    nil,
+			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := NewFileStore(tt.configPath)
-			if !errors.Is(err, tt.wantErr) {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("NewFileStore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -210,31 +193,31 @@ func TestFileStore_Get_invalidConfig(t *testing.T) {
 		name          string
 		serverAddress string
 		want          auth.Credential
-		wantErr       error
+		wantErr       bool
 	}{
 		{
 			name:          "Invalid auth encode",
 			serverAddress: "registry1.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 		{
 			name:          "Invalid auths format",
 			serverAddress: "registry2.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 		{
 			name:          "Invalid type",
 			serverAddress: "registry3.example.com",
 			want:          auth.EmptyCredential,
-			wantErr:       ErrInvalidConfigFormat,
+			wantErr:       true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := fs.Get(ctx, tt.serverAddress)
-			if !errors.Is(err, tt.wantErr) {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("FileStore.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -343,12 +326,12 @@ func TestFileStore_Put_notExistConfig(t *testing.T) {
 	}
 	defer configFile.Close()
 
-	var cfg testConfig
+	var cfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&cfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	want := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	want := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: "refresh_token",
@@ -384,8 +367,8 @@ func TestFileStore_Put_addNew(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server1: {
 				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -425,12 +408,12 @@ func TestFileStore_Put_addNew(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server1: {
 				SomeAuthField: "whatever",
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -474,8 +457,8 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 
 	// prepare test content
 	server := "registry.example.com"
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: {
 				SomeAuthField: "whatever",
 				Username:      "foo",
@@ -513,12 +496,12 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				RegistryToken: "access_token",
@@ -540,7 +523,7 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	}
 }
 
-func TestStore_Put_disableSave(t *testing.T) {
+func TestFileStore_Put_disablePut(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -561,6 +544,51 @@ func TestStore_Put_disableSave(t *testing.T) {
 	err = fs.Put(ctx, server, cred)
 	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
 		t.Errorf("FileStore.Put() error = %v, wantErr %v", err, wantErr)
+	}
+}
+
+func TestFileStore_Put_usernameContainsColon(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "x:y",
+		Password: "z",
+	}
+	if err := fs.Put(ctx, serverAddr, cred); err == nil {
+		t.Fatal("FileStore.Put() error is nil, want", ErrBadCredentialFormat)
+	}
+}
+
+func TestFileStore_Put_passwordContainsColon(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "y",
+		Password: "y:z",
+	}
+	if err := fs.Put(ctx, serverAddr, cred); err != nil {
+		t.Fatal("FileStore.Put() error =", err)
+	}
+	got, err := fs.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("FileStore.Get() error =", err)
+	}
+	if !reflect.DeepEqual(got, cred) {
+		t.Errorf("FileStore.Get() = %v, want %v", got, cred)
 	}
 }
 
@@ -585,8 +613,8 @@ func TestFileStore_Delete(t *testing.T) {
 		AccessToken:  "access_token_2",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server1: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred1.RefreshToken,
@@ -639,12 +667,12 @@ func TestFileStore_Delete(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server2: cfg.AuthConfigs[server2],
 		},
 		SomeConfigField: cfg.SomeConfigField,
@@ -684,8 +712,8 @@ func TestFileStore_Delete_lastConfig(t *testing.T) {
 		AccessToken:  "access_token",
 	}
 
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred.RefreshToken,
@@ -726,12 +754,12 @@ func TestFileStore_Delete_lastConfig(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs:     map[string]testAuthConfig{},
+	wantCfg := configtest.Config{
+		AuthConfigs:     map[string]configtest.AuthConfig{},
 		SomeConfigField: cfg.SomeConfigField,
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
@@ -761,8 +789,8 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 		RefreshToken: "refresh_token",
 		AccessToken:  "access_token",
 	}
-	cfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	cfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: {
 				Auth:          "dXNlcm5hbWU6cGFzc3dvcmQ=",
 				IdentityToken: cred.RefreshToken,
@@ -803,12 +831,12 @@ func TestFileStore_Delete_notExistRecord(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg configtest.Config
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
-		AuthConfigs: map[string]testAuthConfig{
+	wantCfg := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
 			server: cfg.AuthConfigs[server],
 		},
 		SomeConfigField: cfg.SomeConfigField,
@@ -850,105 +878,32 @@ func TestFileStore_Delete_notExistConfig(t *testing.T) {
 	}
 }
 
-func Test_encodeAuth(t *testing.T) {
+func Test_validateCredentialFormat(t *testing.T) {
 	tests := []struct {
-		name     string
-		username string
-		password string
-		want     string
+		name    string
+		cred    auth.Credential
+		wantErr error
 	}{
 		{
-			name:     "Username and password",
-			username: "username",
-			password: "password",
-			want:     "dXNlcm5hbWU6cGFzc3dvcmQ=",
+			name: "Username contains colon",
+			cred: auth.Credential{
+				Username: "x:y",
+				Password: "z",
+			},
+			wantErr: ErrBadCredentialFormat,
 		},
 		{
-			name:     "Username only",
-			username: "username",
-			password: "",
-			want:     "dXNlcm5hbWU6",
-		},
-		{
-			name:     "Password only",
-			username: "",
-			password: "password",
-			want:     "OnBhc3N3b3Jk",
-		},
-		{
-			name:     "Empty username and empty password",
-			username: "",
-			password: "",
-			want:     "",
+			name: "Password contains colon",
+			cred: auth.Credential{
+				Username: "x",
+				Password: "y:z",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := encodeAuth(tt.username, tt.password); got != tt.want {
-				t.Errorf("encodeAuth() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_decodeAuth(t *testing.T) {
-	tests := []struct {
-		name     string
-		authStr  string
-		username string
-		password string
-		wantErr  bool
-	}{
-		{
-			name:     "Valid base64",
-			authStr:  "dXNlcm5hbWU6cGFzc3dvcmQ=", // username:password
-			username: "username",
-			password: "password",
-		},
-		{
-			name:     "Valid base64, username only",
-			authStr:  "dXNlcm5hbWU6", // username:
-			username: "username",
-		},
-		{
-			name:     "Valid base64, password only",
-			authStr:  "OnBhc3N3b3Jk", // :password
-			password: "password",
-		},
-		{
-			name:     "Valid base64, bad format",
-			authStr:  "d2hhdGV2ZXI=", // whatever
-			username: "",
-			password: "",
-			wantErr:  true,
-		},
-		{
-			name:     "Invalid base64",
-			authStr:  "whatever",
-			username: "",
-			password: "",
-			wantErr:  true,
-		},
-		{
-			name:     "Empty string",
-			authStr:  "",
-			username: "",
-			password: "",
-			wantErr:  false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotUsername, gotPassword, err := decodeAuth(tt.authStr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeAuth() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotUsername != tt.username {
-				t.Errorf("decodeAuth() got = %v, want %v", gotUsername, tt.username)
-			}
-			if gotPassword != tt.password {
-				t.Errorf("decodeAuth() got1 = %v, want %v", gotPassword, tt.password)
+			if err := validateCredentialFormat(tt.cred); !errors.Is(err, tt.wantErr) {
+				t.Errorf("validateCredentialFormat() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

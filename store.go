@@ -17,7 +17,10 @@ package credentials
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
+	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -29,6 +32,112 @@ type Store interface {
 	Put(ctx context.Context, serverAddress string, cred auth.Credential) error
 	// Delete removes credentials from the store for the given server address.
 	Delete(ctx context.Context, serverAddress string) error
+}
+
+// dynamicStore dynamically determines which store to use based on the settings
+// in the config file.
+type dynamicStore struct {
+	config             *config.Config
+	options            StoreOptions
+	detectedCredsStore string
+	setCredsStoreOnce  sync.Once
+}
+
+// StoreOptions provides options for NewStore.
+type StoreOptions struct {
+	// AllowPlaintextPut allows saving credentials in plaintext in the config
+	// file.
+	//   - If AllowPlaintextPut is set to false (default value), Put() will
+	//     return an error when native store is not available.
+	//   - If AllowPlaintextPut is set to true, Put() will save credentials in
+	//     plaintext in the config file when native store is not available.
+	AllowPlaintextPut bool
+}
+
+// NewStore returns a Store based on the given configuration file.
+//
+// For Get(), Put() and Delete(), the returned Store will dynamically determine which underlying credentials
+// store to used for the given server address.
+// The  underlying credentials store  is determined in the following order:
+//  1. Native server-specific credential helper
+//  2. Native credentials store
+//  3. The plain-text config file itself
+//
+// If the config file has no authentication information, a platform-default
+// native store will be used.
+//   - Windows: "wincred"
+//   - Linux: "pass" or "secretservice"
+//   - macOS: "osxkeychain"
+//
+// Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+func NewStore(configPath string, opts StoreOptions) (Store, error) {
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return nil, err
+	}
+	ds := &dynamicStore{
+		config:  cfg,
+		options: opts,
+	}
+	if !cfg.IsAuthConfigured() {
+		// no authentication configured, detect the default credentials store
+		ds.detectedCredsStore = getDefaultHelperSuffix()
+	}
+	return ds, nil
+}
+
+// Get retrieves credentials from the store for the given server address.
+func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
+	return ds.getStore(serverAddress).Get(ctx, serverAddress)
+}
+
+// Put saves credentials into the store for the given server address.
+// Returns ErrPlaintextPutDisabled if native store is not available and
+// StoreOptions.AllowPlaintextPut is set to false.
+func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
+	if err := ds.getStore(serverAddress).Put(ctx, serverAddress, cred); err != nil {
+		return err
+	}
+	// save the detected creds store back to the config file on first put
+	ds.setCredsStoreOnce.Do(func() {
+		if ds.detectedCredsStore != "" {
+			if err := ds.config.SetCredentialsStore(ds.detectedCredsStore); err != nil {
+				returnErr = fmt.Errorf("failed to set credsStore: %w", err)
+			}
+		}
+	})
+	return returnErr
+}
+
+// Delete removes credentials from the store for the given server address.
+func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error {
+	return ds.getStore(serverAddress).Delete(ctx, serverAddress)
+}
+
+// getHelperSuffix returns the credential helper suffix for the given server
+// address.
+func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
+	// 1. Look for a server-specific credential helper first
+	if helper := ds.config.GetCredentialHelper(serverAddress); helper != "" {
+		return helper
+	}
+	// 2. Then look for the configured native store
+	if credsStore := ds.config.CredentialsStore(); credsStore != "" {
+		return credsStore
+	}
+	// 3. Use the detected default store
+	return ds.detectedCredsStore
+}
+
+// getStore returns a store for the given server address.
+func (ds *dynamicStore) getStore(serverAddress string) Store {
+	if helper := ds.getHelperSuffix(serverAddress); helper != "" {
+		return NewNativeStore(helper)
+	}
+
+	fs := newFileStore(ds.config)
+	fs.DisablePut = !ds.options.AllowPlaintextPut
+	return fs
 }
 
 // storeWithFallbacks is a store that has multiple fallback stores.

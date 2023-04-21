@@ -17,6 +17,7 @@ package credentials
 
 import (
 	"context"
+	"os/exec"
 
 	"github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
@@ -80,4 +81,13 @@ func (ns *nativeStore) Put(_ context.Context, serverAddress string, cred auth.Cr
 // Delete removes credentials from the store for the given server.
 func (ns *nativeStore) Delete(_ context.Context, serverAddress string) error {
 	return client.Erase(ns.programFunc, serverAddress)
+}
+
+// getDefaultHelperSuffix returns the default credential helper suffix.
+func getDefaultHelperSuffix() string {
+	platformDefault := getPlatformDefaultHelperSuffix()
+	if _, err := exec.LookPath(remoteCredentialsPrefix + platformDefault); err == nil {
+		return platformDefault
+	}
+	return ""
 }
