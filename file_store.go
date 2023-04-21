@@ -18,6 +18,8 @@ package credentials
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -33,9 +35,14 @@ type FileStore struct {
 	config *config.Config
 }
 
-// ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
-// to true.
-var ErrPlaintextPutDisabled = errors.New("putting plaintext credentials is disabled")
+var (
+	// ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
+	// to true.
+	ErrPlaintextPutDisabled = errors.New("putting plaintext credentials is disabled")
+	// ErrBadCredentialFormat is returned by Put() when the credential format
+	// is bad.
+	ErrBadCredentialFormat = errors.New("bad credential format")
+)
 
 // NewFileStore creates a new file credentials store.
 func NewFileStore(configPath string) (*FileStore, error) {
@@ -62,6 +69,9 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 	if fs.DisablePut {
 		return ErrPlaintextPutDisabled
 	}
+	if err := validateCredentialFormat(cred); err != nil {
+		return err
+	}
 
 	return fs.config.PutCredential(serverAddress, cred)
 }
@@ -69,4 +79,15 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 // Delete removes credentials from the store for the given server address.
 func (fs *FileStore) Delete(_ context.Context, serverAddress string) error {
 	return fs.config.DeleteCredential(serverAddress)
+}
+
+// validateCredentialFormat validates the format of cred.
+func validateCredentialFormat(cred auth.Credential) error {
+	if strings.ContainsRune(cred.Username, ':') {
+		// Username and password will be encoded in the base64(username:password)
+		// format in the file. The decoded result will be wrong if username
+		// contains colon(s).
+		return fmt.Errorf("%w: colons(:) are not allowed in username", ErrBadCredentialFormat)
+	}
+	return nil
 }

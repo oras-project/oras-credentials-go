@@ -523,7 +523,7 @@ func TestFileStore_Put_updateOld(t *testing.T) {
 	}
 }
 
-func TestStore_Put_disablePut(t *testing.T) {
+func TestFileStore_Put_disablePut(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	ctx := context.Background()
@@ -544,6 +544,51 @@ func TestStore_Put_disablePut(t *testing.T) {
 	err = fs.Put(ctx, server, cred)
 	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
 		t.Errorf("FileStore.Put() error = %v, wantErr %v", err, wantErr)
+	}
+}
+
+func TestFileStore_Put_usernameContainsColon(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "x:y",
+		Password: "z",
+	}
+	if err := fs.Put(ctx, serverAddr, cred); err == nil {
+		t.Fatal("FileStore.Put() error is nil, want", ErrBadCredentialFormat)
+	}
+}
+
+func TestFileStore_Put_passwordContainsColon(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	ctx := context.Background()
+
+	fs, err := NewFileStore(configPath)
+	if err != nil {
+		t.Fatal("NewFileStore() error =", err)
+	}
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "y",
+		Password: "y:z",
+	}
+	if err := fs.Put(ctx, serverAddr, cred); err != nil {
+		t.Fatal("FileStore.Put() error =", err)
+	}
+	got, err := fs.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("FileStore.Get() error =", err)
+	}
+	if !reflect.DeepEqual(got, cred) {
+		t.Errorf("FileStore.Get() = %v, want %v", got, cred)
 	}
 }
 
@@ -830,5 +875,36 @@ func TestFileStore_Delete_notExistConfig(t *testing.T) {
 	_, err = os.Stat(configPath)
 	if wantErr := os.ErrNotExist; !errors.Is(err, wantErr) {
 		t.Errorf("Stat(%s) error = %v, wantErr %v", configPath, err, wantErr)
+	}
+}
+
+func Test_validateCredentialFormat(t *testing.T) {
+	tests := []struct {
+		name    string
+		cred    auth.Credential
+		wantErr error
+	}{
+		{
+			name: "Username contains colon",
+			cred: auth.Credential{
+				Username: "x:y",
+				Password: "z",
+			},
+			wantErr: ErrBadCredentialFormat,
+		},
+		{
+			name: "Password contains colon",
+			cred: auth.Credential{
+				Username: "x",
+				Password: "y:z",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateCredentialFormat(tt.cred); !errors.Is(err, tt.wantErr) {
+				t.Errorf("validateCredentialFormat() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
