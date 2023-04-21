@@ -27,11 +27,18 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-func Test_dynamicStore(t *testing.T) {
+type testStoreConfig struct {
+	SomeConfigField   int                       `json:"some_config_field"`
+	AuthConfigs       map[string]testAuthConfig `json:"auths"`
+	CredentialsStore  string                    `json:"credsStore,omitempty"`
+	CredentialHelpers map[string]string         `json:"credHelpers,omitempty"`
+}
+
+func Test_dynamicStore_authConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
-	authConfiguredPath := filepath.Join(tempDir, "auth_configured.json")
-	config := testConfig{
+	configPath := filepath.Join(tempDir, "auth_configured.json")
+	config := testStoreConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			"xxx": {},
 		},
@@ -41,77 +48,121 @@ func Test_dynamicStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal config: %v", err)
 	}
-	if err := os.WriteFile(authConfiguredPath, jsonStr, 0666); err != nil {
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
-	noAuthConfiguredPath := filepath.Join(tempDir, "no_auth_configured.json")
-	config = testConfig{
+	store, err := NewStore(configPath, StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+	ds := store.(*dynamicStore)
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "username",
+		Password: "password",
+	}
+	ctx := context.Background()
+
+	// test put
+	if err := ds.Put(ctx, serverAddr, cred); err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+
+	// test get
+	got, err := ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := cred; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+
+	// test delete
+	err = ds.Delete(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Delete() error =", err)
+	}
+
+	// verify delete
+	got, err = ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := auth.EmptyCredential; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+}
+
+func Test_dynamicStore_noAuthConfigured(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "no_auth_configured.json")
+	cfg := testStoreConfig{
 		SomeConfigField: 123,
 	}
-	jsonStr, err = json.Marshal(config)
+	jsonStr, err := json.Marshal(cfg)
 	if err != nil {
 		t.Fatalf("failed to marshal config: %v", err)
 	}
-	if err := os.WriteFile(noAuthConfiguredPath, jsonStr, 0666); err != nil {
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
-	tests := []struct {
-		name       string
-		configPath string
-	}{
-		{
-			name:       "Authentication configured",
-			configPath: authConfiguredPath,
-		},
-		{
-			name:       "No authentication configured",
-			configPath: noAuthConfiguredPath,
-		},
+	store, err := NewStore(configPath, StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ds, err := NewStore(tt.configPath, StoreOptions{AllowPlaintextPut: true})
-			if err != nil {
-				t.Fatal("NewStore() error =", err)
-			}
-			serverAddr := "test.example.com"
-			cred := auth.Credential{
-				Username: "username",
-				Password: "password",
-			}
-			ctx := context.Background()
+	ds := store.(*dynamicStore)
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "username",
+		Password: "password",
+	}
+	ctx := context.Background()
 
-			// test put
-			if err := ds.Put(ctx, serverAddr, cred); err != nil {
-				t.Fatal("dynamicStore.Get() error =", err)
-			}
+	// Get() should not set detected store back to config
+	if _, err := ds.Get(ctx, serverAddr); err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if got := ds.config.CredentialsStore(); got != "" {
+		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
+	}
 
-			// test get
-			got, err := ds.Get(ctx, serverAddr)
-			if err != nil {
-				t.Fatal("dynamicStore.Get() error =", err)
-			}
-			if want := cred; got != want {
-				t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
-			}
+	// test put
+	if err := ds.Put(ctx, serverAddr, cred); err != nil {
+		t.Fatal("dynamicStore.Put() error =", err)
+	}
 
-			// test delete
-			err = ds.Delete(ctx, serverAddr)
-			if err != nil {
-				t.Fatal("dynamicStore.Delete() error =", err)
-			}
+	// Put() should set detected store back to config
+	if defaultStore := getDefaultHelperSuffix(); defaultStore != "" {
+		if got := ds.config.CredentialsStore(); got != defaultStore {
+			t.Errorf("ds.config.CredentialsStore() = %v, want %v", got, defaultStore)
+		}
+	}
 
-			// verify delete
-			got, err = ds.Get(ctx, serverAddr)
-			if err != nil {
-				t.Fatal("dynamicStore.Get() error =", err)
-			}
-			if want := auth.EmptyCredential; got != want {
-				t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
-			}
-		})
+	// test get
+	got, err := ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := cred; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+
+	// test delete
+	err = ds.Delete(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Delete() error =", err)
+	}
+
+	// verify delete
+	got, err = ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := auth.EmptyCredential; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
 	}
 }
 
@@ -126,7 +177,7 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	cfg := testConfig{
+	cfg := testStoreConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			"test.example.com": {},
 		},
@@ -165,11 +216,11 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 		t.Fatalf("failed to open config file: %v", err)
 	}
 	defer configFile.Close()
-	var gotCfg testConfig
+	var gotCfg testStoreConfig
 	if err := json.NewDecoder(configFile).Decode(&gotCfg); err != nil {
 		t.Fatalf("failed to decode config file: %v", err)
 	}
-	wantCfg := testConfig{
+	wantCfg := testStoreConfig{
 		AuthConfigs: map[string]testAuthConfig{
 			"test.example.com": {},
 			serverAddr: {

@@ -17,6 +17,8 @@ package credentials
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -35,8 +37,10 @@ type Store interface {
 // dynamicStore dynamically determines which store to use based on the settings
 // in the config file.
 type dynamicStore struct {
-	config  *config.Config
-	options StoreOptions
+	config             *config.Config
+	options            StoreOptions
+	detectedCredsStore string
+	setCredsStoreOnce  sync.Once
 }
 
 // StoreOptions provides options for NewStore.
@@ -51,7 +55,7 @@ type StoreOptions struct {
 }
 
 // NewStore returns a store based on given config file.
-// If no any authentication is configured in the config file, a platform-default
+// If no authentication is configured in the config file, a platform-default
 // native store will be used.
 //   - Windows: "wincred"
 //   - Linux: "pass" or "secretservice"
@@ -63,16 +67,15 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !cfg.IsAuthConfigured() {
-		if defaultCredsStore := getDefaultHelperSuffix(); defaultCredsStore != "" {
-			cfg.CredentialsStore = defaultCredsStore
-		}
-	}
-
-	return &dynamicStore{
+	ds := &dynamicStore{
 		config:  cfg,
 		options: opts,
-	}, nil
+	}
+	if !cfg.IsAuthConfigured() {
+		// no authentication configured, detect the default credentials store
+		ds.detectedCredsStore = getDefaultHelperSuffix()
+	}
+	return ds, nil
 }
 
 // Get retrieves credentials from the store for the given server address.
@@ -87,12 +90,23 @@ func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Cre
 // Put saves credentials into the store for the given server address.
 // Returns ErrPlaintextPutDisabled if native store is not available and
 // StoreOptions.AllowPlaintextPut is set to false.
-func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
+func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
 	store, err := ds.getStore(serverAddress)
 	if err != nil {
 		return err
 	}
-	return store.Put(ctx, serverAddress, cred)
+	if err := store.Put(ctx, serverAddress, cred); err != nil {
+		return err
+	}
+	// save the detected creds store back to the config file on first put
+	ds.setCredsStoreOnce.Do(func() {
+		if ds.detectedCredsStore != "" {
+			if err := ds.config.SetCredentialsStore(ds.detectedCredsStore); err != nil {
+				returnErr = fmt.Errorf("failed to set credsStore: %w", err)
+			}
+		}
+	})
+	return returnErr
 }
 
 // Delete removes credentials from the store for the given server address.
@@ -112,7 +126,11 @@ func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 		return helper
 	}
 	// 2. Then look for the configured native store
-	return ds.config.CredentialsStore
+	if credsStore := ds.config.CredentialsStore(); credsStore != "" {
+		return credsStore
+	}
+	// 3. Use the detected default store
+	return ds.detectedCredsStore
 }
 
 // getStore returns a store for the given server address.
