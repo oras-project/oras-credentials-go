@@ -413,3 +413,35 @@ func TestStoreWithFallbacks(t *testing.T) {
 		t.Fatal("incorrect credential after the delete")
 	}
 }
+
+func Test_getDockerConfigPath_env(t *testing.T) {
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal("os.Getwd() error =", err)
+	}
+	t.Setenv("DOCKER_CONFIG", dir)
+
+	got, err := getDockerConfigPath()
+	if err != nil {
+		t.Fatal("getDockerConfigPath() error =", err)
+	}
+	if want := filepath.Join(dir, "config.json"); got != want {
+		t.Errorf("getDockerConfigPath() = %v, want %v", got, want)
+	}
+}
+
+func Test_getDockerConfigPath_homeDir(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", "")
+
+	got, err := getDockerConfigPath()
+	if err != nil {
+		t.Fatal("getDockerConfigPath() error =", err)
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal("os.UserHomeDir()")
+	}
+	if want := filepath.Join(homeDir, ".docker", "config.json"); got != want {
+		t.Errorf("getDockerConfigPath() = %v, want %v", got, want)
+	}
+}

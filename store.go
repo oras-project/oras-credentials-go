@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	dockerConfigDirEnv   = "DOCKER_CONFIG"
 	dockerConfigFileDir  = ".docker"
 	dockerConfigFileName = "config.json"
 )
@@ -76,7 +77,9 @@ type StoreOptions struct {
 //   - Linux: "pass" or "secretservice"
 //   - macOS: "osxkeychain"
 //
-// Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+//   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -94,10 +97,14 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 }
 
 // NewStoreFromDocker returns a Store based on the default docker config file.
-// It will first look for $DOCKER_CONFIG/config.json and then
-// $HOME/.docker/config.json.
+//   - If the $DOCKER_CONFIG environment variable is set,
+//     $DOCKER_CONFIG/config.json will be used.
+//   - Otherwise, the default location $HOME/.docker/config.json will be used.
 //
 // NewStoreFromDocker internally calls [credentials.NewStore].
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
+//   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
 func NewStoreFromDocker(opt StoreOptions) (Store, error) {
 	configPath, err := getDockerConfigPath()
 	if err != nil {
@@ -162,10 +169,10 @@ func (ds *dynamicStore) getStore(serverAddress string) Store {
 
 // getDockerConfigPath returns the path to the default docker config file.
 func getDockerConfigPath() (string, error) {
-	// 1. First try the environment variable
-	configDir := os.Getenv("DOCKER_CONFIG")
+	// first try the environment variable
+	configDir := os.Getenv(dockerConfigDirEnv)
 	if configDir == "" {
-		// 2. Then try home directory
+		// then try home directory
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("failed to get user home directory: %w", err)
