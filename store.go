@@ -77,7 +77,7 @@ type StoreOptions struct {
 //   - Linux: "pass" or "secretservice"
 //   - macOS: "osxkeychain"
 //
-// Reference:
+// References:
 //   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 //   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
@@ -102,7 +102,8 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 //   - Otherwise, the default location $HOME/.docker/config.json will be used.
 //
 // NewStoreFromDocker internally calls [credentials.NewStore].
-// Reference:
+//
+// References:
 //   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
 //   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
 func NewStoreFromDocker(opt StoreOptions) (Store, error) {
