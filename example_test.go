@@ -24,9 +24,7 @@ import (
 func TestMain(m *testing.M) {
 	fmt.Println("Hello test")
 	// Setup example remote target
-	httpsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-	}))
+	httpsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer httpsServer.Close()
 	os.Exit(m.Run())
 }
