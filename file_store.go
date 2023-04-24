@@ -27,6 +27,8 @@ import (
 
 // FileStore implements a credentials store using the docker configuration file
 // to keep the credentials in plain-text.
+//
+// Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 type FileStore struct {
 	// DisablePut disables putting credentials in plaintext.
 	// If DisablePut is set to true, Put() will return ErrPlaintextPutDisabled.
@@ -45,6 +47,8 @@ var (
 )
 
 // NewFileStore creates a new file credentials store.
+//
+// Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 func NewFileStore(configPath string) (*FileStore, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {

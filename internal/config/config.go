@@ -89,7 +89,9 @@ func (ac AuthConfig) Credential() (auth.Credential, error) {
 }
 
 // Config represents a docker configuration file.
-// Reference: https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
+// References:
+//   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
+//   - https://github.com/docker/cli/blob/v24.0.0-beta.2/cli/config/configfile/file.go#L17-L44
 type Config struct {
 	// path is the path to the config file.
 	path string

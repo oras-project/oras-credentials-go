@@ -18,10 +18,18 @@ package credentials
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/oras-project/oras-credentials-go/internal/config"
 	"oras.land/oras-go/v2/registry/remote/auth"
+)
+
+const (
+	dockerConfigDirEnv   = "DOCKER_CONFIG"
+	dockerConfigFileDir  = ".docker"
+	dockerConfigFileName = "config.json"
 )
 
 // Store is the interface that any credentials store must implement.
@@ -69,7 +77,9 @@ type StoreOptions struct {
 //   - Linux: "pass" or "secretservice"
 //   - macOS: "osxkeychain"
 //
-// Reference: https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+// References:
+//   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+//   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 func NewStore(configPath string, opts StoreOptions) (Store, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -84,6 +94,24 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 		ds.detectedCredsStore = getDefaultHelperSuffix()
 	}
 	return ds, nil
+}
+
+// NewStoreFromDocker returns a Store based on the default docker config file.
+//   - If the $DOCKER_CONFIG environment variable is set,
+//     $DOCKER_CONFIG/config.json will be used.
+//   - Otherwise, the default location $HOME/.docker/config.json will be used.
+//
+// NewStoreFromDocker internally calls [credentials.NewStore].
+//
+// References:
+//   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
+//   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
+func NewStoreFromDocker(opt StoreOptions) (Store, error) {
+	configPath, err := getDockerConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	return NewStore(configPath, opt)
 }
 
 // Get retrieves credentials from the store for the given server address.
@@ -138,6 +166,21 @@ func (ds *dynamicStore) getStore(serverAddress string) Store {
 	fs := newFileStore(ds.config)
 	fs.DisablePut = !ds.options.AllowPlaintextPut
 	return fs
+}
+
+// getDockerConfigPath returns the path to the default docker config file.
+func getDockerConfigPath() (string, error) {
+	// first try the environment variable
+	configDir := os.Getenv(dockerConfigDirEnv)
+	if configDir == "" {
+		// then try home directory
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		configDir = filepath.Join(homeDir, dockerConfigFileDir)
+	}
+	return filepath.Join(configDir, dockerConfigFileName), nil
 }
 
 // storeWithFallbacks is a store that has multiple fallback stores.
