@@ -797,44 +797,154 @@ func TestConfig_DeleteCredential_notExistConfig(t *testing.T) {
 }
 
 func TestConfig_GetCredentialHelper(t *testing.T) {
-	type args struct {
-		serverAddress string
+	cfg, err := Load("../../testdata/credHelpers_config.json")
+	if err != nil {
+		t.Fatal("Load() error =", err)
 	}
+
 	tests := []struct {
-		name string
-		cfg  *Config
-		args args
-		want string
+		name          string
+		serverAddress string
+		want          string
 	}{
-		// TODO: Add test cases.
+		{
+			name:          "Get cred helper: registry_helper1",
+			serverAddress: "registry1.example.com",
+			want:          "registry1-helper",
+		},
+		{
+			name:          "Get cred helper: registry_helper2",
+			serverAddress: "registry2.example.com",
+			want:          "registry2-helper",
+		},
+		{
+			name:          "Empty cred helper configured",
+			serverAddress: "registry3.example.com",
+			want:          "",
+		},
+		{
+			name:          "No cred helper configured",
+			serverAddress: "whatever.example.com",
+			want:          "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.cfg.GetCredentialHelper(tt.args.serverAddress); got != tt.want {
+			if got := cfg.GetCredentialHelper(tt.serverAddress); got != tt.want {
 				t.Errorf("Config.GetCredentialHelper() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestConfig_SetCredentialsStore(t *testing.T) {
-	type args struct {
-		credsStore string
-	}
+func TestConfig_CredentialsStore(t *testing.T) {
 	tests := []struct {
-		name    string
-		cfg     *Config
-		args    args
-		wantErr bool
+		name       string
+		configPath string
+		want       string
 	}{
-		// TODO: Add test cases.
+		{
+			name:       "creds store configured",
+			configPath: "../../testdata/credsStore_config.json",
+			want:       "teststore",
+		},
+		{
+			name:       "No creds store configured",
+			configPath: "../../testdata/credsHelpers_config.json",
+			want:       "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.cfg.SetCredentialsStore(tt.args.credsStore); (err != nil) != tt.wantErr {
-				t.Errorf("Config.SetCredentialsStore() error = %v, wantErr %v", err, tt.wantErr)
+			cfg, err := Load(tt.configPath)
+			if err != nil {
+				t.Fatal("Load() error =", err)
+			}
+			if got := cfg.CredentialsStore(); got != tt.want {
+				t.Errorf("Config.CredentialsStore() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestConfig_SetCredentialsStore(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	testCfg := configtest.Config{
+		SomeConfigField: 123,
+	}
+	jsonStr, err := json.Marshal(testCfg)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	// test SetCredentialsStore
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal("Load() error =", err)
+	}
+	credsStore := "testStore"
+	if err := cfg.SetCredentialsStore(credsStore); err != nil {
+		t.Fatal("Config.SetCredentialsStore() error =", err)
+	}
+
+	// verify
+	if got := cfg.credentialsStore; got != credsStore {
+		t.Errorf("Config.credentialsStore = %v, want %v", got, credsStore)
+	}
+	// verify config file
+	configFile, err := os.Open(configPath)
+	if err != nil {
+		t.Fatalf("failed to open config file: %v", err)
+	}
+	var gotTestCfg1 configtest.Config
+	if err := json.NewDecoder(configFile).Decode(&gotTestCfg1); err != nil {
+		t.Fatalf("failed to decode config file: %v", err)
+	}
+	if err := configFile.Close(); err != nil {
+		t.Fatal("failed to close config file:", err)
+	}
+
+	wantTestCfg1 := configtest.Config{
+		AuthConfigs:      make(map[string]configtest.AuthConfig),
+		CredentialsStore: credsStore,
+		SomeConfigField:  testCfg.SomeConfigField,
+	}
+	if !reflect.DeepEqual(gotTestCfg1, wantTestCfg1) {
+		t.Errorf("Decoded config = %v, want %v", gotTestCfg1, wantTestCfg1)
+	}
+
+	// test SetCredentialsStore: set as empty
+	if err := cfg.SetCredentialsStore(""); err != nil {
+		t.Fatal("Config.SetCredentialsStore() error =", err)
+	}
+	// verify
+	if got := cfg.credentialsStore; got != "" {
+		t.Errorf("Config.credentialsStore = %v, want empty", got)
+	}
+	// verify config file
+	configFile, err = os.Open(configPath)
+	if err != nil {
+		t.Fatalf("failed to open config file: %v", err)
+	}
+	var gotTestCfg2 configtest.Config
+	if err := json.NewDecoder(configFile).Decode(&gotTestCfg2); err != nil {
+		t.Fatalf("failed to decode config file: %v", err)
+	}
+	if err := configFile.Close(); err != nil {
+		t.Fatal("failed to close config file:", err)
+	}
+
+	wantTestCfg2 := configtest.Config{
+		AuthConfigs:     make(map[string]configtest.AuthConfig),
+		SomeConfigField: testCfg.SomeConfigField,
+	}
+	if !reflect.DeepEqual(gotTestCfg2, wantTestCfg2) {
+		t.Errorf("Decoded config = %v, want %v", gotTestCfg2, wantTestCfg2)
 	}
 }
 
