@@ -445,3 +445,81 @@ func Test_getDockerConfigPath_homeDir(t *testing.T) {
 		t.Errorf("getDockerConfigPath() = %v, want %v", got, want)
 	}
 }
+
+func TestNewStoreFromDocker(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("DOCKER_CONFIG", tempDir)
+
+	serverAddr1 := "test.example.com"
+	cred1 := auth.Credential{
+		Username: "foo",
+		Password: "bar",
+	}
+	config := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
+			serverAddr1: {
+				Auth: "Zm9vOmJhcg==",
+			},
+		},
+		SomeConfigField: 123,
+	}
+	jsonStr, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	ctx := context.Background()
+
+	ds, err := NewStoreFromDocker(StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		t.Fatal("NewStoreFromDocker() error =", err)
+	}
+
+	// test getting an existing credential
+	got, err := ds.Get(ctx, serverAddr1)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := cred1; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+
+	// test putting a new credential
+	serverAddr2 := "newtest.example.com"
+	cred2 := auth.Credential{
+		Username: "username",
+		Password: "password",
+	}
+	if err := ds.Put(ctx, serverAddr2, cred2); err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+
+	// test getting the new credential
+	got, err = ds.Get(ctx, serverAddr2)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := cred2; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+
+	// test deleting the old credential
+	err = ds.Delete(ctx, serverAddr1)
+	if err != nil {
+		t.Fatal("dynamicStore.Delete() error =", err)
+	}
+
+	// verify delete
+	got, err = ds.Get(ctx, serverAddr1)
+	if err != nil {
+		t.Fatal("dynamicStore.Get() error =", err)
+	}
+	if want := auth.EmptyCredential; got != want {
+		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+	}
+}
