@@ -127,7 +127,7 @@ func TestLogin_unsupportedClient(t *testing.T) {
 	s := &testStore{}
 	cred := auth.EmptyCredential
 	err = Login(ctx, s, reg, cred)
-	if wantErr := errClientTypeUnsupported; !errors.Is(err, wantErr) {
+	if wantErr := ErrClientTypeUnsupported; !errors.Is(err, wantErr) {
 		t.Errorf("Login() error = %v, wantErr %v", err, wantErr)
 	}
 }

@@ -24,9 +24,9 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// errClientTypeUnsupported is thrown by Login() when the registry's client type
+// ErrClientTypeUnsupported is thrown by Login() when the registry's client type
 // is not supported.
-var errClientTypeUnsupported = errors.New("client type not supported")
+var ErrClientTypeUnsupported = errors.New("client type not supported")
 
 // Login provides the login functionality with the given credentials. The target
 // registry's client should be nil or of type *auth.Client. Login uses
@@ -43,7 +43,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	} else if client, ok := reg.Client.(*auth.Client); ok {
 		authClient = *client
 	} else {
-		return errClientTypeUnsupported
+		return ErrClientTypeUnsupported
 	}
 	regClone.Client = &authClient
 	// update credentials with the client
