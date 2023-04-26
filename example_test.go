@@ -23,6 +23,101 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+func ExampleNewNativeStore() {
+	ns := credentials.NewNativeStore("pass")
+
+	ctx := context.Background()
+	// save credentials into the store
+	err := ns.Put(ctx, "localhost:5000", auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// get credentials from the store
+	cred, err := ns.Get(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cred)
+
+	// delete the credentials from the store
+	err = ns.Delete(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func ExampleNewFileStore() {
+	fs, err := credentials.NewFileStore("example/path/config.json")
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	// save credentials into the store
+	err = fs.Put(ctx, "localhost:5000", auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// get credentials from the store
+	cred, err := fs.Get(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cred)
+
+	// delete the credentials from the store
+	err = fs.Delete(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func ExampleNewStore() {
+	// NewStore returns a Store based on the given configuration file. It will
+	// automatically determine which Store (file store or native store) to use.
+	// If the native store is not available, you can save your credentials in
+	// the configuration file by specifying AllowPlaintextPut: true, but keep
+	// in mind that this is an unsafe workaround.
+	// See the documentation for details.
+	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{
+		AllowPlaintextPut: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	// save credentials into the store
+	err = store.Put(ctx, "localhost:5000", auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// get credentials from the store
+	cred, err := store.Get(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cred)
+
+	// delete the credentials from the store
+	err = store.Delete(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func ExampleLogin() {
 	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{
 		AllowPlaintextPut: true,

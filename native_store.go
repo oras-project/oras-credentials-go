@@ -37,6 +37,13 @@ type nativeStore struct {
 
 // NewNativeStore creates a new native store that uses a remote helper program to
 // manage credentials.
+//
+// The argument of NewNativeStore can be the native keychains
+// ("wincred" for Windows, "pass" for linux and "osxkeychain" for macOS),
+// or any program that follows the docker-credentials-helper protocol.
+//
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
 	return &nativeStore{
 		programFunc: client.NewShellProgramFunc(remoteCredentialsPrefix + helperSuffix),

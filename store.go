@@ -65,7 +65,7 @@ type StoreOptions struct {
 // NewStore returns a Store based on the given configuration file.
 //
 // For Get(), Put() and Delete(), the returned Store will dynamically determine which underlying credentials
-// store to used for the given server address.
+// store to use for the given server address.
 // The  underlying credentials store  is determined in the following order:
 //  1. Native server-specific credential helper
 //  2. Native credentials store
