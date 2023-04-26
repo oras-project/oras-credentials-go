@@ -18,6 +18,7 @@ package credentials
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -110,6 +111,24 @@ func TestLogin(t *testing.T) {
 			}
 			s.Delete(tt.ctx, reg.Reference.Registry)
 		})
+	}
+}
+
+func TestLogin_unsupportedClient(t *testing.T) {
+	var testClient http.Client
+	reg, err := remote.NewRegistry("whatever")
+	if err != nil {
+		t.Fatalf("cannot create test registry: %v", err)
+	}
+	reg.PlainHTTP = true
+	reg.Client = &testClient
+	ctx := context.Background()
+
+	s := &testStore{}
+	cred := auth.EmptyCredential
+	err = Login(ctx, s, reg, cred)
+	if wantErr := ErrClientTypeUnsupported; !errors.Is(err, wantErr) {
+		t.Errorf("Login() error = %v, wantErr %v", err, wantErr)
 	}
 }
 
@@ -206,6 +225,11 @@ func TestCredential(t *testing.T) {
 		{
 			name:           "get credentials for a registry not stored",
 			registry:       "localhost:6666",
+			wantCredential: auth.EmptyCredential,
+		},
+		{
+			name:           "get credentials for an empty string",
+			registry:       "",
 			wantCredential: auth.EmptyCredential,
 		},
 	}
