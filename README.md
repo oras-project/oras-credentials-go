@@ -7,7 +7,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/oras-project/oras-credentials-go)](https://goreportcard.com/report/github.com/oras-project/oras-credentials-go)
 [![Go Reference](https://pkg.go.dev/badge/github.com/oras-project/oras-credentials-go.svg)](https://pkg.go.dev/github.com/oras-project/oras-credentials-go)
 
-![ORAS](https://github.com/oras-project/oras-www/raw/main/docs/assets/images/oras.png)
+<p align="left">
+<a href="https://oras.land/"><img src="https://oras.land/img/oras.svg" alt="banner" width="100px"></a>
+</p>
 
 ## Versioning
 
