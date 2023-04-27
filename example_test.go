@@ -41,7 +41,7 @@ func ExampleLogin() {
 }
 
 func ExampleLogout() {
-	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{AllowPlaintextPut: true})
+	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +53,7 @@ func ExampleLogout() {
 }
 
 func ExampleCredential() {
-	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{AllowPlaintextPut: true})
+	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -66,5 +66,8 @@ func ExampleCredential() {
 		panic(err)
 	}
 
-	client.Do(request)
+	_, err = client.Do(request)
+	if err != nil {
+		panic(err)
+	}
 }
