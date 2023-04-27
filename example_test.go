@@ -16,6 +16,7 @@ package credentials_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	credentials "github.com/oras-project/oras-credentials-go"
 	"oras.land/oras-go/v2/registry/remote"
@@ -49,4 +50,21 @@ func ExampleLogout() {
 		panic(err)
 	}
 	fmt.Println("Logout succeeded")
+}
+
+func ExampleCredential() {
+	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		panic(err)
+	}
+
+	client := auth.Client{}
+	client.Credential = credentials.Credential(store)
+
+	request, err := http.NewRequest(http.MethodGet, "localhost:8080", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client.Do(request)
 }
