@@ -118,6 +118,72 @@ func ExampleNewStore() {
 	}
 }
 
+func ExampleNewStoreFromDocker() {
+	ds, err := credentials.NewStoreFromDocker(credentials.StoreOptions{
+		AllowPlaintextPut: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	// save credentials into the store
+	err = ds.Put(ctx, "localhost:5000", auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// get credentials from the store
+	cred, err := ds.Get(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cred)
+
+	// delete the credentials from the store
+	err = ds.Delete(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func ExampleNewStoreWithFallbacks_configAsPrimaryStoreDockerAsFallback() {
+	primaryStore, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{
+		AllowPlaintextPut: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	fallbackStore, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+	sf := credentials.NewStoreWithFallbacks(primaryStore, fallbackStore)
+
+	ctx := context.Background()
+	// save credentials into the store
+	err = sf.Put(ctx, "localhost:5000", auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// get credentials from the store
+	cred, err := sf.Get(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cred)
+
+	// delete the credentials from the store
+	err = sf.Delete(ctx, "localhost:5000")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func ExampleLogin() {
 	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{
 		AllowPlaintextPut: true,
