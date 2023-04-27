@@ -101,7 +101,7 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 //     $DOCKER_CONFIG/config.json will be used.
 //   - Otherwise, the default location $HOME/.docker/config.json will be used.
 //
-// NewStoreFromDocker internally calls [credentials.NewStore].
+// NewStoreFromDocker internally calls [NewStore].
 //
 // References:
 //   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
