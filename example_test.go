@@ -24,15 +24,20 @@ import (
 )
 
 func ExampleLogin() {
-	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{AllowPlaintextPut: true})
+	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{
+		AllowPlaintextPut: true,
+	})
 	if err != nil {
 		panic(err)
 	}
-	registry, err := remote.NewRegistry("example.registry.com")
+	registry, err := remote.NewRegistry("localhost:5000")
 	if err != nil {
 		panic(err)
 	}
-	cred := auth.Credential{Username: "username-example", Password: "password-example"}
+	cred := auth.Credential{
+		Username: "username-example",
+		Password: "password-example",
+	}
 	err = credentials.Login(context.Background(), store, registry, cred)
 	if err != nil {
 		panic(err)
@@ -45,7 +50,7 @@ func ExampleLogout() {
 	if err != nil {
 		panic(err)
 	}
-	err = credentials.Logout(context.Background(), store, "example.registry.com")
+	err = credentials.Logout(context.Background(), store, "localhost:5000")
 	if err != nil {
 		panic(err)
 	}
@@ -61,7 +66,7 @@ func ExampleCredential() {
 	client := auth.DefaultClient
 	client.Credential = credentials.Credential(store)
 
-	request, err := http.NewRequest(http.MethodGet, "localhost:8080", nil)
+	request, err := http.NewRequest(http.MethodGet, "localhost:5000", nil)
 	if err != nil {
 		panic(err)
 	}
