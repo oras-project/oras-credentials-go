@@ -58,7 +58,7 @@ func ExampleCredential() {
 		panic(err)
 	}
 
-	client := auth.Client{}
+	client := auth.DefaultClient
 	client.Credential = credentials.Credential(store)
 
 	request, err := http.NewRequest(http.MethodGet, "localhost:8080", nil)
