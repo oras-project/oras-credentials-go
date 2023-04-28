@@ -18,7 +18,7 @@ The `oras-credentials-go` library follows [Semantic Versioning](https://semver.o
 ## Docs
 
 - [oras-go](https://github.com/oras-project/oras-go): Source code of the ORAS Go library
-- [oras.land/client_libraries/go](https://oras.land/docs/Client_Libraries/go): Documentation for the ORAS Go library
+- [oras.land/docs/Client_Libraries/go](https://oras.land/docs/Client_Libraries/go): Documentation for the ORAS Go library
 - [Reviewing guide](https://github.com/oras-project/community/blob/main/REVIEWING.md): All reviewers must read the reviewing guide and agree to follow the project review guidelines.
 
 ## Code of Conduct
