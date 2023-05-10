@@ -48,13 +48,13 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	regClone.Client = &authClient
 	// update credentials with the client
 	authClient.Credential = auth.StaticCredential(reg.Reference.Registry, cred)
-	// login and store credential
+	// validate and store the credential
 	if err := regClone.Ping(ctx); err != nil {
-		return fmt.Errorf("unable to ping the registry %s: %w", regClone.Reference.Registry, err)
+		return fmt.Errorf("failed to validate the credential for %s: %w", regClone.Reference.Registry, err)
 	}
 	hostname := mapStoreRegistryName(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
-		return fmt.Errorf("unable to store the credential for %s: %w", hostname, err)
+		return fmt.Errorf("failed to store the credential for %s: %w", hostname, err)
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 func Logout(ctx context.Context, store Store, registryName string) error {
 	registryName = mapStoreRegistryName(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
-		return fmt.Errorf("unable to delete the credential for %s: %w", registryName, err)
+		return fmt.Errorf("failed to delete the credential for %s: %w", registryName, err)
 	}
 	return nil
 }
