@@ -1,11 +1,11 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
-
-	exec "golang.org/x/sys/execabs"
+	"os/exec"
 )
 
 // Program is an interface to execute external programs.
@@ -15,7 +15,7 @@ type Program interface {
 }
 
 // ProgramFunc is a type of function that initializes programs based on arguments.
-type ProgramFunc func(args ...string) Program
+type ProgramFunc func(ctx context.Context, args ...string) Program
 
 // NewShellProgramFunc creates programs that are executed in a Shell.
 func NewShellProgramFunc(name string) ProgramFunc {
@@ -24,13 +24,13 @@ func NewShellProgramFunc(name string) ProgramFunc {
 
 // NewShellProgramFuncWithEnv creates programs that are executed in a Shell with environment variables
 func NewShellProgramFuncWithEnv(name string, env *map[string]string) ProgramFunc {
-	return func(args ...string) Program {
-		return &Shell{cmd: createProgramCmdRedirectErr(name, args, env)}
+	return func(ctx context.Context, args ...string) Program {
+		return &Shell{cmd: createProgramCmdRedirectErr(ctx, name, args, env)}
 	}
 }
 
-func createProgramCmdRedirectErr(commandName string, args []string, env *map[string]string) *exec.Cmd {
-	programCmd := exec.Command(commandName, args...)
+func createProgramCmdRedirectErr(ctx context.Context, commandName string, args []string, env *map[string]string) *exec.Cmd {
+	programCmd := exec.CommandContext(ctx, commandName, args...)
 	programCmd.Env = os.Environ()
 	if env != nil {
 		for k, v := range *env {
