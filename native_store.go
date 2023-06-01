@@ -20,13 +20,12 @@ import (
 	"os/exec"
 
 	"github.com/docker/docker-credential-helpers/credentials"
-	"github.com/oras-project/oras-credentials-go/internal/renameme"
+	"github.com/oras-project/oras-credentials-go/internal/client"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 const (
 	remoteCredentialsPrefix = "docker-credential-"
-	emptyUsername           = "<token>"
 )
 
 // nativeStore implements a credentials store using native keychain to keep
@@ -53,7 +52,7 @@ func NewNativeStore(helperSuffix string) Store {
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	dockerCred, err := renameme.Get(ctx, ns.helperBinaryName, serverAddress)
+	dockerCred, err := client.Get(ctx, ns.helperBinaryName, serverAddress)
 	if err != nil {
 		if credentials.IsErrCredentialsNotFound(err) {
 			// do not return an error if the credentials are not in the keychain.
@@ -61,8 +60,8 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 		}
 		return auth.EmptyCredential, err
 	}
-	// bearer auth is used if the username is emptyUsername
-	if dockerCred.Username == emptyUsername {
+	// bearer auth is used if the username is "<token>"
+	if dockerCred.Username == "<token>" {
 		cred.RefreshToken = dockerCred.Secret
 	} else {
 		cred.Username = dockerCred.Username
@@ -73,21 +72,12 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store.
 func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	dockerCred := &credentials.Credentials{
-		ServerURL: serverAddress,
-		Username:  cred.Username,
-		Secret:    cred.Password,
-	}
-	if cred.RefreshToken != "" {
-		dockerCred.Username = emptyUsername
-		dockerCred.Secret = cred.RefreshToken
-	}
-	return renameme.Store(ctx, ns.helperBinaryName, dockerCred)
+	return client.Store(ctx, ns.helperBinaryName, serverAddress, cred)
 }
 
 // Delete removes credentials from the store for the given server.
 func (ns *nativeStore) Delete(ctx context.Context, serverAddress string) error {
-	return renameme.Erase(ctx, ns.helperBinaryName, serverAddress)
+	return client.Erase(ctx, ns.helperBinaryName, serverAddress)
 }
 
 // getDefaultHelperSuffix returns the default credential helper suffix.
