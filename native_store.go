@@ -31,7 +31,6 @@ const (
 // nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
 type nativeStore struct {
-	// helperBinaryName string
 	exe client.Executer
 }
 
@@ -45,9 +44,6 @@ type nativeStore struct {
 // Reference:
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
-	// return &nativeStore{
-	// 	helperBinaryName: remoteCredentialsPrefix + helperSuffix,
-	// }
 	return &nativeStore{
 		exe: client.NewExecuter(remoteCredentialsPrefix + helperSuffix),
 	}
@@ -56,7 +52,6 @@ func NewNativeStore(helperSuffix string) Store {
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	// dockerCred, err := client.Get(ctx, ns.helperBinaryName, serverAddress)
 	dockerCred, err := client.Get(ctx, ns.exe, serverAddress)
 	if err != nil {
 		if credentials.IsErrCredentialsNotFound(err) {
@@ -77,7 +72,6 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store.
 func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	// return client.Store(ctx, ns.helperBinaryName, serverAddress, cred)
 	return client.Store(ctx, ns.exe, serverAddress, cred)
 }
 
