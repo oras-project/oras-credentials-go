@@ -31,7 +31,8 @@ const (
 // nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
 type nativeStore struct {
-	helperBinaryName string
+	// helperBinaryName string
+	exe client.Executer
 }
 
 // NewNativeStore creates a new native store that uses a remote helper program to
@@ -44,15 +45,19 @@ type nativeStore struct {
 // Reference:
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
+	// return &nativeStore{
+	// 	helperBinaryName: remoteCredentialsPrefix + helperSuffix,
+	// }
 	return &nativeStore{
-		helperBinaryName: remoteCredentialsPrefix + helperSuffix,
+		exe: client.NewExecuter(remoteCredentialsPrefix + helperSuffix),
 	}
 }
 
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	dockerCred, err := client.Get(ctx, ns.helperBinaryName, serverAddress)
+	// dockerCred, err := client.Get(ctx, ns.helperBinaryName, serverAddress)
+	dockerCred, err := client.Get(ctx, ns.exe, serverAddress)
 	if err != nil {
 		if credentials.IsErrCredentialsNotFound(err) {
 			// do not return an error if the credentials are not in the keychain.
@@ -72,12 +77,13 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store.
 func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	return client.Store(ctx, ns.helperBinaryName, serverAddress, cred)
+	// return client.Store(ctx, ns.helperBinaryName, serverAddress, cred)
+	return client.Store(ctx, ns.exe, serverAddress, cred)
 }
 
 // Delete removes credentials from the store for the given server.
 func (ns *nativeStore) Delete(ctx context.Context, serverAddress string) error {
-	return client.Erase(ctx, ns.helperBinaryName, serverAddress)
+	return client.Erase(ctx, ns.exe, serverAddress)
 }
 
 // getDefaultHelperSuffix returns the default credential helper suffix.

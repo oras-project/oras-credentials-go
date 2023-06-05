@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -49,7 +48,7 @@ func isValidCredsMessage(msg string) error {
 }
 
 // Store uses an external program to save credentials.
-func Store(ctx context.Context, binary string, serverAddress string, cred auth.Credential) error {
+func Store(ctx context.Context, exe Executer, serverAddress string, cred auth.Credential) error {
 	dockerCred := &credentials.Credentials{
 		ServerURL: serverAddress,
 		Username:  cred.Username,
@@ -61,41 +60,46 @@ func Store(ctx context.Context, binary string, serverAddress string, cred auth.C
 	}
 
 	// should I use *cmd (pointer) here?
-	cmd := createCmd(ctx, binary, "store")
+	// cmd := createCmd(ctx, binary, "store")
 	buffer := new(bytes.Buffer)
 	if err := json.NewEncoder(buffer).Encode(dockerCred); err != nil {
 		return err
 	}
-	cmd.Stdin = buffer
+	//cmd.Stdin = buffer
 
-	out, err := cmd.Output()
-	if err != nil {
-		t := strings.TrimSpace(string(out))
+	// out, err := cmd.Output()
+	// if err != nil {
+	// 	t := strings.TrimSpace(string(out))
 
-		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
-			err = isValidErr
-		}
+	// 	if isValidErr := isValidCredsMessage(t); isValidErr != nil {
+	// 		err = isValidErr
+	// 	}
 
-		return fmt.Errorf("error storing credentials - err: %v, out: `%s`", err, t)
-	}
+	// 	return fmt.Errorf("error storing credentials - err: %v, out: `%s`", err, t)
+	// }
+	exe.Execute(ctx, buffer, "store")
 
 	return nil
 }
 
 // Get executes an external program to get the credentials from a native store.
-func Get(ctx context.Context, binary string, serverURL string) (*credentials.Credentials, error) {
-	cmd := createCmd(ctx, binary, "get")
-	cmd.Stdin = strings.NewReader(serverURL)
-	out, err := cmd.Output()
+func Get(ctx context.Context, exe Executer, serverURL string) (*credentials.Credentials, error) {
+	// cmd := createCmd(ctx, binary, "get")
+	// cmd.Stdin = strings.NewReader(serverURL)
+	// out, err := cmd.Output()
+	// if err != nil {
+	// 	t := strings.TrimSpace(string(out))
+	// 	if credentials.IsErrCredentialsNotFoundMessage(t) {
+	// 		return nil, credentials.NewErrCredentialsNotFound()
+	// 	}
+	// 	if isValidErr := isValidCredsMessage(t); isValidErr != nil {
+	// 		err = isValidErr
+	// 	}
+	// 	return nil, fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, t)
+	// }
+	out, err := exe.Execute(ctx, strings.NewReader(serverURL), "get")
 	if err != nil {
-		t := strings.TrimSpace(string(out))
-		if credentials.IsErrCredentialsNotFoundMessage(t) {
-			return nil, credentials.NewErrCredentialsNotFound()
-		}
-		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
-			err = isValidErr
-		}
-		return nil, fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, t)
+		return nil, err // some handling needed
 	}
 	resp := &credentials.Credentials{
 		ServerURL: serverURL,
@@ -107,16 +111,17 @@ func Get(ctx context.Context, binary string, serverURL string) (*credentials.Cre
 }
 
 // Erase executes a program to remove the server credentials from the native store.
-func Erase(ctx context.Context, binary string, serverURL string) error {
-	cmd := createCmd(ctx, binary, "erase")
-	cmd.Stdin = strings.NewReader(serverURL)
-	out, err := cmd.Output()
-	if err != nil {
-		t := strings.TrimSpace(string(out))
-		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
-			err = isValidErr
-		}
-		return fmt.Errorf("error erasing credentials - err: %v, out: `%s`", err, t)
-	}
+func Erase(ctx context.Context, exe Executer, serverURL string) error {
+	//cmd := createCmd(ctx, binary, "erase")
+	// cmd.Stdin = strings.NewReader(serverURL)
+	// out, err := cmd.Output()
+	// if err != nil {
+	// 	t := strings.TrimSpace(string(out))
+	// 	if isValidErr := isValidCredsMessage(t); isValidErr != nil {
+	// 		err = isValidErr
+	// 	}
+	// 	return fmt.Errorf("error erasing credentials - err: %v, out: `%s`", err, t)
+	// }
+	exe.Execute(ctx, strings.NewReader(serverURL), "erase")
 	return nil
 }
