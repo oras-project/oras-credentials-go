@@ -15,18 +15,17 @@
 
 package credentials
 
-// import (
-// 	"context"
-// 	"encoding/json"
-// 	"fmt"
-// 	"io"
-// 	"strings"
-// 	"testing"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"testing"
 
-// 	"github.com/docker/docker-credential-helpers/client"
-// 	"github.com/docker/docker-credential-helpers/credentials"
-// 	"oras.land/oras-go/v2/registry/remote/auth"
-// )
+	"github.com/docker/docker-credential-helpers/credentials"
+	"oras.land/oras-go/v2/registry/remote/auth"
+)
 
 const (
 	basicAuthHost    = "localhost:2333"
@@ -36,127 +35,113 @@ const (
 	testRefreshToken = "test_token"
 )
 
-// var (
-// 	errCommandExited = fmt.Errorf("exited with error")
-// )
+var (
+	errCommandExited = fmt.Errorf("exited with error")
+)
 
-// // testCommand implements the Program interface for testing purpose.
-// // It simulates interactions between the docker client and a remote
-// // credentials helper.
-// type testCommand struct {
-// 	arg   string
-// 	input io.Reader
-// }
+// testExecuter implements the Executer interface for testing purpose.
+// It simulates interactions between the docker client and a remote
+// credentials helper.
+type testExecuter struct{}
 
-// // Output returns responses from the remote credentials helper.
-// // It mocks those responses based in the input in the mock.
-// func (m *testCommand) Output() ([]byte, error) {
-// 	in, err := io.ReadAll(m.input)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	inS := string(in)
-// 	switch m.arg {
-// 	case "get":
-// 		switch inS {
-// 		case basicAuthHost:
-// 			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
-// 		case bearerAuthHost:
-// 			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
-// 		default:
-// 			return []byte("program failed"), errCommandExited
-// 		}
-// 	case "store":
-// 		var c credentials.Credentials
-// 		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
-// 		if err != nil {
-// 			return []byte("program failed"), errCommandExited
-// 		}
-// 		switch c.ServerURL {
-// 		case basicAuthHost, bearerAuthHost:
-// 			return nil, nil
-// 		default:
-// 			return []byte("program failed"), errCommandExited
-// 		}
-// 	case "erase":
-// 		switch inS {
-// 		case basicAuthHost, bearerAuthHost:
-// 			return nil, nil
-// 		default:
-// 			return []byte("program failed"), errCommandExited
-// 		}
-// 	}
-// 	return []byte(fmt.Sprintf("unknown argument %q with %q", m.arg, inS)), errCommandExited
-// }
+// Execute returns responses from the remote credentials helper.
+// It mocks those responses based in the input in the mock.
+func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action string) ([]byte, error) {
+	in, err := io.ReadAll(input)
+	if err != nil {
+		return nil, err
+	}
+	inS := string(in)
+	switch action {
+	case "get":
+		switch inS {
+		case basicAuthHost:
+			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
+		case bearerAuthHost:
+			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
+		default:
+			return []byte("program failed"), errCommandExited
+		}
+	case "store":
+		var c credentials.Credentials
+		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
+		if err != nil {
+			return []byte("program failed"), errCommandExited
+		}
+		switch c.ServerURL {
+		case basicAuthHost, bearerAuthHost:
+			return nil, nil
+		default:
+			return []byte("program failed"), errCommandExited
+		}
+	case "erase":
+		switch inS {
+		case basicAuthHost, bearerAuthHost:
+			return nil, nil
+		default:
+			return []byte("program failed"), errCommandExited
+		}
+	}
+	return []byte(fmt.Sprintf("unknown argument %q with %q", action, inS)), errCommandExited
+}
 
-// // Input sets the input to send to a remote credentials helper.
-// func (m *testCommand) Input(in io.Reader) {
-// 	m.input = in
-// }
+func TestNativeStore_interface(t *testing.T) {
+	var ns interface{} = &nativeStore{}
+	if _, ok := ns.(Store); !ok {
+		t.Error("&NativeStore{} does not conform Store")
+	}
+}
 
-// func testCommandFn(args ...string) client.Program {
-// 	return &testCommand{
-// 		arg: args[0],
-// 	}
-// }
+func TestNativeStore_basicAuth(t *testing.T) {
+	ns := &nativeStore{
+		exe: &testExecuter{},
+	}
+	// Put
+	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
+	if err != nil {
+		t.Fatalf("basic auth test ns.Put fails: %v", err)
+	}
+	// Get
+	cred, err := ns.Get(context.Background(), basicAuthHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Get fails: %v", err)
+	}
+	if cred.Username != testUsername {
+		t.Fatal("incorrect username")
+	}
+	if cred.Password != testPassword {
+		t.Fatal("incorrect password")
+	}
+	// Delete
+	err = ns.Delete(context.Background(), basicAuthHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Delete fails: %v", err)
+	}
+}
 
-// func TestNativeStore_interface(t *testing.T) {
-// 	var ns interface{} = &nativeStore{}
-// 	if _, ok := ns.(Store); !ok {
-// 		t.Error("&NativeStore{} does not conform Store")
-// 	}
-// }
-
-// func TestNativeStore_basicAuth(t *testing.T) {
-// 	ns := &nativeStore{
-// 		programFunc: testCommandFn,
-// 	}
-// 	// Put
-// 	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
-// 	if err != nil {
-// 		t.Fatalf("basic auth test ns.Put fails: %v", err)
-// 	}
-// 	// Get
-// 	cred, err := ns.Get(context.Background(), basicAuthHost)
-// 	if err != nil {
-// 		t.Fatalf("basic auth test ns.Get fails: %v", err)
-// 	}
-// 	if cred.Username != testUsername {
-// 		t.Fatal("incorrect username")
-// 	}
-// 	if cred.Password != testPassword {
-// 		t.Fatal("incorrect password")
-// 	}
-// 	// Delete
-// 	err = ns.Delete(context.Background(), basicAuthHost)
-// 	if err != nil {
-// 		t.Fatalf("basic auth test ns.Delete fails: %v", err)
-// 	}
-// }
-
-// func TestNativeStore_refreshToken(t *testing.T) {
-// 	ns := &nativeStore{
-// 		programFunc: testCommandFn,
-// 	}
-// 	// Put
-// 	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
-// 	if err != nil {
-// 		t.Fatalf("refresh token test ns.Put fails: %v", err)
-// 	}
-// 	// Get
-// 	cred, err := ns.Get(context.Background(), bearerAuthHost)
-// 	if err != nil {
-// 		t.Fatalf("refresh token test ns.Get fails: %v", err)
-// 	}
-// 	if cred.Username != "" {
-// 		t.Fatalf("expect username to be empty, got %s", cred.Username)
-// 	}
-// 	if cred.RefreshToken != testRefreshToken {
-// 		t.Fatal("incorrect refresh token")
-// 	}
-// 	// Delete
-// 	err = ns.Delete(context.Background(), basicAuthHost)
-// 	if err != nil {
-// 		t.Fatalf("refresh token test ns.Delete fails: %v", err)
-// 	}
-// }
+func TestNativeStore_refreshToken(t *testing.T) {
+	ns := &nativeStore{
+		exe: &testExecuter{},
+	}
+	// Put
+	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
+	if err != nil {
+		t.Fatalf("refresh token test ns.Put fails: %v", err)
+	}
+	// Get
+	cred, err := ns.Get(context.Background(), bearerAuthHost)
+	if err != nil {
+		t.Fatalf("refresh token test ns.Get fails: %v", err)
+	}
+	if cred.Username != "" {
+		t.Fatalf("expect username to be empty, got %s", cred.Username)
+	}
+	if cred.RefreshToken != testRefreshToken {
+		t.Fatal("incorrect refresh token")
+	}
+	// Delete
+	err = ns.Delete(context.Background(), basicAuthHost)
+	if err != nil {
+		t.Fatalf("refresh token test ns.Delete fails: %v", err)
+	}
+}

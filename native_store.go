@@ -55,7 +55,6 @@ func NewNativeStore(helperSuffix string) Store {
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	// dockerCred, err := client.Get(ctx, ns.exe, serverAddress)
 	out, err := ns.exe.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
 		return auth.EmptyCredential, err // some handling needed
@@ -78,7 +77,6 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store.
 func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	//return client.Store(ctx, ns.exe, serverAddress, cred)
 	dockerCred := &credentials.Credentials{
 		ServerURL: serverAddress,
 		Username:  cred.Username,
@@ -92,14 +90,14 @@ func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.
 	if err := json.NewEncoder(buffer).Encode(dockerCred); err != nil {
 		return err
 	}
-	ns.exe.Execute(ctx, buffer, "store")
-	return nil
+	_, err := ns.exe.Execute(ctx, buffer, "store")
+	return err
 }
 
 // Delete removes credentials from the store for the given server.
 func (ns *nativeStore) Delete(ctx context.Context, serverAddress string) error {
-	ns.exe.Execute(ctx, strings.NewReader(serverAddress), "erase")
-	return nil
+	_, err := ns.exe.Execute(ctx, strings.NewReader(serverAddress), "erase")
+	return err
 }
 
 // getDefaultHelperSuffix returns the default credential helper suffix.
