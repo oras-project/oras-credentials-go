@@ -120,22 +120,3 @@ func Erase(ctx context.Context, binary string, serverURL string) error {
 	}
 	return nil
 }
-
-// List executes a program to list server credentials in the native store.
-func List(ctx context.Context, binary string) (map[string]string, error) {
-	cmd := createCmd(ctx, binary, "list")
-	cmd.Stdin = strings.NewReader("unused")
-	out, err := cmd.Output()
-	if err != nil {
-		t := strings.TrimSpace(string(out))
-		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
-			err = isValidErr
-		}
-		return nil, fmt.Errorf("error listing credentials - err: %v, out: `%s`", err, t)
-	}
-	var resp map[string]string
-	if err = json.NewDecoder(bytes.NewReader(out)).Decode(&resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
