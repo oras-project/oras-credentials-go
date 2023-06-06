@@ -57,7 +57,7 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 	var cred auth.Credential
 	out, err := ns.exe.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
-		return auth.EmptyCredential, err // some handling needed
+		return auth.EmptyCredential, err
 	}
 	dockerCred := &credentials.Credentials{
 		ServerURL: serverAddress,
