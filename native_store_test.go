@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker-credential-helpers/credentials"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -63,7 +62,7 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 			return []byte("program failed"), errCommandExited
 		}
 	case "store":
-		var c credentials.Credentials
+		var c dockerCredentials
 		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
 		if err != nil {
 			return []byte("program failed"), errCommandExited

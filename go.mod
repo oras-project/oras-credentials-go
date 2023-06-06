@@ -2,10 +2,7 @@ module github.com/oras-project/oras-credentials-go
 
 go 1.19
 
-require (
-	github.com/docker/docker-credential-helpers v0.7.0
-	oras.land/oras-go/v2 v2.2.0
-)
+require oras.land/oras-go/v2 v2.2.0
 
 require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect

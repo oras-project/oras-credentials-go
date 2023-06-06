@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/docker/docker-credential-helpers/credentials"
 	"github.com/oras-project/oras-credentials-go/internal/executer"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -30,6 +29,14 @@ import (
 const (
 	remoteCredentialsPrefix = "docker-credential-"
 )
+
+// dockerCredentials mimics how docker credential helper binaries store
+// credential information.
+type dockerCredentials struct {
+	ServerURL string
+	Username  string
+	Secret    string
+}
 
 // nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
@@ -59,7 +66,7 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 	if err != nil {
 		return auth.EmptyCredential, err
 	}
-	dockerCred := &credentials.Credentials{
+	dockerCred := &dockerCredentials{
 		ServerURL: serverAddress,
 	}
 	if err := json.NewDecoder(bytes.NewReader(out)).Decode(dockerCred); err != nil {
@@ -77,7 +84,7 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store.
 func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	dockerCred := &credentials.Credentials{
+	dockerCred := &dockerCredentials{
 		ServerURL: serverAddress,
 		Username:  cred.Username,
 		Secret:    cred.Password,
