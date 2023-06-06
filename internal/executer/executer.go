@@ -24,24 +24,24 @@ import (
 	"os/exec"
 )
 
-// doc please
+// Executer is an interface that simulates an executable binary.
 type Executer interface {
 	Execute(ctx context.Context, input io.Reader, action string) ([]byte, error)
 }
 
-// doc please
+// executable implements the Executer interface.
 type executable struct {
 	name string
 }
 
-// doc please
+// NewExecuter returns a new Executer instance.
 func NewExecuter(name string) Executer {
 	return &executable{
 		name: name,
 	}
 }
 
-// doc please
+// Execute operates on an executable binary and supports context.
 func (c *executable) Execute(ctx context.Context, input io.Reader, action string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, c.name, action)
 	cmd.Stdin = input
