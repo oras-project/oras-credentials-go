@@ -93,7 +93,7 @@ func TestNativeStore_interface(t *testing.T) {
 
 func TestNativeStore_basicAuth(t *testing.T) {
 	ns := &nativeStore{
-		exe: &testExecuter{},
+		&testExecuter{},
 	}
 	// Put
 	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
@@ -120,7 +120,7 @@ func TestNativeStore_basicAuth(t *testing.T) {
 
 func TestNativeStore_refreshToken(t *testing.T) {
 	ns := &nativeStore{
-		exe: &testExecuter{},
+		&testExecuter{},
 	}
 	// Put
 	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
