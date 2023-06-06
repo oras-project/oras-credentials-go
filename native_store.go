@@ -28,6 +28,7 @@ import (
 
 const (
 	remoteCredentialsPrefix = "docker-credential-"
+	emptyUsername           = "<token>"
 )
 
 // dockerCredentials mimics how docker credential helper binaries store
@@ -73,7 +74,7 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 		return auth.EmptyCredential, err
 	}
 	// bearer auth is used if the username is "<token>"
-	if dockerCred.Username == "<token>" {
+	if dockerCred.Username == emptyUsername {
 		cred.RefreshToken = dockerCred.Secret
 	} else {
 		cred.Username = dockerCred.Username
@@ -90,7 +91,7 @@ func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.
 		Secret:    cred.Password,
 	}
 	if cred.RefreshToken != "" {
-		dockerCred.Username = "<token>"
+		dockerCred.Username = emptyUsername
 		dockerCred.Secret = cred.RefreshToken
 	}
 	buffer := new(bytes.Buffer)
