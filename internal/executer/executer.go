@@ -13,10 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-This package is an abstraction for the docker credential helper protocol
-binaries. It is used by nativeStore to interact with installed binaries.
-*/
+// Package executer is an abstraction for the docker credential helper protocol
+// binaries. It is used by nativeStore to interact with installed binaries.
 package executer
 
 import (

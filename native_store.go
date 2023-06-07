@@ -94,11 +94,11 @@ func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.
 		dockerCred.Username = emptyUsername
 		dockerCred.Secret = cred.RefreshToken
 	}
-	buffer := new(bytes.Buffer)
-	if err := json.NewEncoder(buffer).Encode(dockerCred); err != nil {
+	credJSON, err := json.Marshal(dockerCred)
+	if err != nil {
 		return err
 	}
-	_, err := ns.Execute(ctx, buffer, "store")
+	_, err = ns.Execute(ctx, bytes.NewReader(credJSON), "store")
 	return err
 }
 
