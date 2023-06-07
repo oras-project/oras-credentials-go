@@ -33,10 +33,12 @@ const (
 
 // dockerCredentials mimics how docker credential helper binaries store
 // credential information.
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol
 type dockerCredentials struct {
-	ServerURL string
-	Username  string
-	Secret    string
+	ServerURL string `json:"ServerURL"`
+	Username  string `json:"Username"`
+	Secret    string `json:"Secret"`
 }
 
 // nativeStore implements a credentials store using native keychain to keep
@@ -56,7 +58,7 @@ type nativeStore struct {
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
 	return &nativeStore{
-		executer.NewExecuter(remoteCredentialsPrefix + helperSuffix),
+		executer.New(remoteCredentialsPrefix + helperSuffix),
 	}
 }
 
@@ -67,10 +69,8 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 	if err != nil {
 		return auth.EmptyCredential, err
 	}
-	dockerCred := &dockerCredentials{
-		ServerURL: serverAddress,
-	}
-	if err := json.NewDecoder(bytes.NewReader(out)).Decode(dockerCred); err != nil {
+	var dockerCred dockerCredentials
+	if err := json.Unmarshal(out, &dockerCred); err != nil {
 		return auth.EmptyCredential, err
 	}
 	// bearer auth is used if the username is "<token>"

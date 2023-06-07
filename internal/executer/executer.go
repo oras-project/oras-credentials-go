@@ -13,6 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+This package is an abstraction for the docker credential helper protocol
+binaries. It is used by nativeStore to interact with installed binaries.
+*/
 package executer
 
 import (
@@ -34,8 +38,8 @@ type executable struct {
 	name string
 }
 
-// NewExecuter returns a new Executer instance.
-func NewExecuter(name string) Executer {
+// New returns a new Executer instance.
+func New(name string) Executer {
 	return &executable{
 		name: name,
 	}
