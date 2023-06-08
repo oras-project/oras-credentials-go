@@ -16,11 +16,13 @@ limitations under the License.
 package credentials
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os/exec"
+	"strings"
 
-	"github.com/docker/docker-credential-helpers/client"
-	"github.com/docker/docker-credential-helpers/credentials"
+	"github.com/oras-project/oras-credentials-go/internal/executer"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
@@ -29,10 +31,20 @@ const (
 	emptyUsername           = "<token>"
 )
 
+// dockerCredentials mimics how docker credential helper binaries store
+// credential information.
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol
+type dockerCredentials struct {
+	ServerURL string `json:"ServerURL"`
+	Username  string `json:"Username"`
+	Secret    string `json:"Secret"`
+}
+
 // nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
 type nativeStore struct {
-	programFunc client.ProgramFunc
+	exec executer.Executer
 }
 
 // NewNativeStore creates a new native store that uses a remote helper program to
@@ -46,22 +58,22 @@ type nativeStore struct {
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
 	return &nativeStore{
-		programFunc: client.NewShellProgramFunc(remoteCredentialsPrefix + helperSuffix),
+		exec: executer.New(remoteCredentialsPrefix + helperSuffix),
 	}
 }
 
 // Get retrieves credentials from the store for the given server.
-func (ns *nativeStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
+func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	dockerCred, err := client.Get(ns.programFunc, serverAddress)
+	out, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
-		if credentials.IsErrCredentialsNotFound(err) {
-			// do not return an error if the credentials are not in the keychain.
-			return auth.EmptyCredential, nil
-		}
 		return auth.EmptyCredential, err
 	}
-	// bearer auth is used if the username is emptyUsername
+	var dockerCred dockerCredentials
+	if err := json.Unmarshal(out, &dockerCred); err != nil {
+		return auth.EmptyCredential, err
+	}
+	// bearer auth is used if the username is "<token>"
 	if dockerCred.Username == emptyUsername {
 		cred.RefreshToken = dockerCred.Secret
 	} else {
@@ -72,8 +84,8 @@ func (ns *nativeStore) Get(_ context.Context, serverAddress string) (auth.Creden
 }
 
 // Put saves credentials into the store.
-func (ns *nativeStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
-	dockerCred := &credentials.Credentials{
+func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
+	dockerCred := &dockerCredentials{
 		ServerURL: serverAddress,
 		Username:  cred.Username,
 		Secret:    cred.Password,
@@ -82,12 +94,18 @@ func (ns *nativeStore) Put(_ context.Context, serverAddress string, cred auth.Cr
 		dockerCred.Username = emptyUsername
 		dockerCred.Secret = cred.RefreshToken
 	}
-	return client.Store(ns.programFunc, dockerCred)
+	credJSON, err := json.Marshal(dockerCred)
+	if err != nil {
+		return err
+	}
+	_, err = ns.exec.Execute(ctx, bytes.NewReader(credJSON), "store")
+	return err
 }
 
 // Delete removes credentials from the store for the given server.
-func (ns *nativeStore) Delete(_ context.Context, serverAddress string) error {
-	return client.Erase(ns.programFunc, serverAddress)
+func (ns *nativeStore) Delete(ctx context.Context, serverAddress string) error {
+	_, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "erase")
+	return err
 }
 
 // getDefaultHelperSuffix returns the default credential helper suffix.

@@ -23,14 +23,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker-credential-helpers/client"
-	"github.com/docker/docker-credential-helpers/credentials"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 const (
 	basicAuthHost    = "localhost:2333"
 	bearerAuthHost   = "localhost:6666"
+	exeErrorHost     = "localhost:500/exeError"
+	jsonErrorHost    = "localhost:500/jsonError"
 	testUsername     = "test_username"
 	testPassword     = "test_password"
 	testRefreshToken = "test_token"
@@ -38,42 +38,44 @@ const (
 
 var (
 	errCommandExited = fmt.Errorf("exited with error")
+	exeErr           = fmt.Errorf("Execute failed")
 )
 
-// testCommand implements the Program interface for testing purpose.
+// testExecuter implements the Executer interface for testing purpose.
 // It simulates interactions between the docker client and a remote
 // credentials helper.
-type testCommand struct {
-	arg   string
-	input io.Reader
-}
+type testExecuter struct{}
 
-// Output returns responses from the remote credentials helper.
+// Execute returns responses from the remote credentials helper.
 // It mocks those responses based in the input in the mock.
-func (m *testCommand) Output() ([]byte, error) {
-	in, err := io.ReadAll(m.input)
+func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action string) ([]byte, error) {
+	in, err := io.ReadAll(input)
 	if err != nil {
 		return nil, err
 	}
 	inS := string(in)
-	switch m.arg {
+	switch action {
 	case "get":
 		switch inS {
 		case basicAuthHost:
 			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
 		case bearerAuthHost:
 			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
+		case exeErrorHost:
+			return []byte("Execute failed"), exeErr
+		case jsonErrorHost:
+			return []byte("json.Unmarshal failed"), nil
 		default:
 			return []byte("program failed"), errCommandExited
 		}
 	case "store":
-		var c credentials.Credentials
+		var c dockerCredentials
 		err := json.NewDecoder(strings.NewReader(inS)).Decode(&c)
 		if err != nil {
 			return []byte("program failed"), errCommandExited
 		}
 		switch c.ServerURL {
-		case basicAuthHost, bearerAuthHost:
+		case basicAuthHost, bearerAuthHost, exeErrorHost:
 			return nil, nil
 		default:
 			return []byte("program failed"), errCommandExited
@@ -86,18 +88,7 @@ func (m *testCommand) Output() ([]byte, error) {
 			return []byte("program failed"), errCommandExited
 		}
 	}
-	return []byte(fmt.Sprintf("unknown argument %q with %q", m.arg, inS)), errCommandExited
-}
-
-// Input sets the input to send to a remote credentials helper.
-func (m *testCommand) Input(in io.Reader) {
-	m.input = in
-}
-
-func testCommandFn(args ...string) client.Program {
-	return &testCommand{
-		arg: args[0],
-	}
+	return []byte(fmt.Sprintf("unknown argument %q with %q", action, inS)), errCommandExited
 }
 
 func TestNativeStore_interface(t *testing.T) {
@@ -109,7 +100,7 @@ func TestNativeStore_interface(t *testing.T) {
 
 func TestNativeStore_basicAuth(t *testing.T) {
 	ns := &nativeStore{
-		programFunc: testCommandFn,
+		&testExecuter{},
 	}
 	// Put
 	err := ns.Put(context.Background(), basicAuthHost, auth.Credential{Username: testUsername, Password: testPassword})
@@ -136,7 +127,7 @@ func TestNativeStore_basicAuth(t *testing.T) {
 
 func TestNativeStore_refreshToken(t *testing.T) {
 	ns := &nativeStore{
-		programFunc: testCommandFn,
+		&testExecuter{},
 	}
 	// Put
 	err := ns.Put(context.Background(), bearerAuthHost, auth.Credential{RefreshToken: testRefreshToken})
@@ -158,5 +149,21 @@ func TestNativeStore_refreshToken(t *testing.T) {
 	err = ns.Delete(context.Background(), basicAuthHost)
 	if err != nil {
 		t.Fatalf("refresh token test ns.Delete fails: %v", err)
+	}
+}
+
+func TestNativeStore_errorHandling(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	// Get Error: Execute error
+	_, err := ns.Get(context.Background(), exeErrorHost)
+	if err != exeErr {
+		t.Fatalf("got error: %v, should get exeErr", err)
+	}
+	// Get Error: json.Unmarshal
+	_, err = ns.Get(context.Background(), jsonErrorHost)
+	if err == nil {
+		t.Fatalf("should get error from json.Unmarshal")
 	}
 }
