@@ -29,6 +29,8 @@ import (
 const (
 	basicAuthHost    = "localhost:2333"
 	bearerAuthHost   = "localhost:6666"
+	exeErrorHost     = "localhost:500/exeError"
+	jsonErrorHost    = "localhost:500/jsonError"
 	testUsername     = "test_username"
 	testPassword     = "test_password"
 	testRefreshToken = "test_token"
@@ -36,6 +38,7 @@ const (
 
 var (
 	errCommandExited = fmt.Errorf("exited with error")
+	exeErr           = fmt.Errorf("Execute failed")
 )
 
 // testExecuter implements the Executer interface for testing purpose.
@@ -58,6 +61,10 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
 		case bearerAuthHost:
 			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
+		case exeErrorHost:
+			return []byte("Execute failed"), exeErr
+		case jsonErrorHost:
+			return []byte("json.Unmarshal failed"), nil
 		default:
 			return []byte("program failed"), errCommandExited
 		}
@@ -68,7 +75,7 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 			return []byte("program failed"), errCommandExited
 		}
 		switch c.ServerURL {
-		case basicAuthHost, bearerAuthHost:
+		case basicAuthHost, bearerAuthHost, exeErrorHost:
 			return nil, nil
 		default:
 			return []byte("program failed"), errCommandExited
@@ -142,5 +149,21 @@ func TestNativeStore_refreshToken(t *testing.T) {
 	err = ns.Delete(context.Background(), basicAuthHost)
 	if err != nil {
 		t.Fatalf("refresh token test ns.Delete fails: %v", err)
+	}
+}
+
+func TestNativeStore_errorHandling(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	// Get Error: Execute error
+	_, err := ns.Get(context.Background(), exeErrorHost)
+	if err != exeErr {
+		t.Fatalf("got error: %v, should get exeErr", err)
+	}
+	// Get Error: json.Unmarshal
+	_, err = ns.Get(context.Background(), jsonErrorHost)
+	if err == nil {
+		t.Fatalf("should get error from json.Unmarshal")
 	}
 }
