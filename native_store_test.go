@@ -27,18 +27,20 @@ import (
 )
 
 const (
-	basicAuthHost    = "localhost:2333"
-	bearerAuthHost   = "localhost:6666"
-	exeErrorHost     = "localhost:500/exeError"
-	jsonErrorHost    = "localhost:500/jsonError"
-	testUsername     = "test_username"
-	testPassword     = "test_password"
-	testRefreshToken = "test_token"
+	basicAuthHost     = "localhost:2333"
+	bearerAuthHost    = "localhost:6666"
+	exeErrorHost      = "localhost:500/exeError"
+	jsonErrorHost     = "localhost:500/jsonError"
+	noCredentialsHost = "localhost:404"
+	testUsername      = "test_username"
+	testPassword      = "test_password"
+	testRefreshToken  = "test_token"
 )
 
 var (
-	errCommandExited = fmt.Errorf("exited with error")
-	exeErr           = fmt.Errorf("Execute failed")
+	errCommandExited       = fmt.Errorf("exited with error")
+	errExecute             = fmt.Errorf("Execute failed")
+	errCredentialsNotFound = fmt.Errorf(errCredentialsNotFoundMessage)
 )
 
 // testExecuter implements the Executer interface for testing purpose.
@@ -46,8 +48,8 @@ var (
 // credentials helper.
 type testExecuter struct{}
 
-// Execute returns responses from the remote credentials helper.
-// It mocks those responses based in the input in the mock.
+// Execute mocks the behavior of a credential helper binary. It returns responses
+// and errors based on the input.
 func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action string) ([]byte, error) {
 	in, err := io.ReadAll(input)
 	if err != nil {
@@ -62,9 +64,11 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 		case bearerAuthHost:
 			return []byte(`{"Username": "<token>", "Secret": "test_token"}`), nil
 		case exeErrorHost:
-			return []byte("Execute failed"), exeErr
+			return []byte("Execute failed"), errExecute
 		case jsonErrorHost:
 			return []byte("json.Unmarshal failed"), nil
+		case noCredentialsHost:
+			return []byte("credentials not found"), errCredentialsNotFound
 		default:
 			return []byte("program failed"), errCommandExited
 		}
@@ -158,12 +162,17 @@ func TestNativeStore_errorHandling(t *testing.T) {
 	}
 	// Get Error: Execute error
 	_, err := ns.Get(context.Background(), exeErrorHost)
-	if err != exeErr {
+	if err != errExecute {
 		t.Fatalf("got error: %v, should get exeErr", err)
 	}
 	// Get Error: json.Unmarshal
 	_, err = ns.Get(context.Background(), jsonErrorHost)
 	if err == nil {
 		t.Fatalf("should get error from json.Unmarshal")
+	}
+	// Get: Should not return error when credentials are not found
+	_, err = ns.Get(context.Background(), noCredentialsHost)
+	if err != nil {
+		t.Fatalf("should not get error when no credentials are found")
 	}
 }
