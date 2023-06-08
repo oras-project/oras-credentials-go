@@ -69,6 +69,7 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 	out, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
 		if err.Error() == errCredentialsNotFoundMessage {
+			// do not return an error if the credentials are not in the keychain.
 			return auth.EmptyCredential, nil
 		}
 		return auth.EmptyCredential, err
