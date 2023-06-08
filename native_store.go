@@ -44,7 +44,7 @@ type dockerCredentials struct {
 // nativeStore implements a credentials store using native keychain to keep
 // credentials secure.
 type nativeStore struct {
-	executer.Executer
+	exec executer.Executer
 }
 
 // NewNativeStore creates a new native store that uses a remote helper program to
@@ -58,14 +58,14 @@ type nativeStore struct {
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 func NewNativeStore(helperSuffix string) Store {
 	return &nativeStore{
-		executer.New(remoteCredentialsPrefix + helperSuffix),
+		exec: executer.New(remoteCredentialsPrefix + helperSuffix),
 	}
 }
 
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential
-	out, err := ns.Execute(ctx, strings.NewReader(serverAddress), "get")
+	out, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
 		return auth.EmptyCredential, err
 	}
@@ -98,13 +98,13 @@ func (ns *nativeStore) Put(ctx context.Context, serverAddress string, cred auth.
 	if err != nil {
 		return err
 	}
-	_, err = ns.Execute(ctx, bytes.NewReader(credJSON), "store")
+	_, err = ns.exec.Execute(ctx, bytes.NewReader(credJSON), "store")
 	return err
 }
 
 // Delete removes credentials from the store for the given server.
 func (ns *nativeStore) Delete(ctx context.Context, serverAddress string) error {
-	_, err := ns.Execute(ctx, strings.NewReader(serverAddress), "erase")
+	_, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "erase")
 	return err
 }
 
