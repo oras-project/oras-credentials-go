@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	remoteCredentialsPrefix = "docker-credential-"
-	emptyUsername           = "<token>"
+	remoteCredentialsPrefix       = "docker-credential-"
+	emptyUsername                 = "<token>"
+	errCredentialsNotFoundMessage = "credentials not found in native keychain"
 )
 
 // dockerCredentials mimics how docker credential helper binaries store
@@ -67,6 +68,10 @@ func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Cred
 	var cred auth.Credential
 	out, err := ns.exec.Execute(ctx, strings.NewReader(serverAddress), "get")
 	if err != nil {
+		if err.Error() == errCredentialsNotFoundMessage {
+			// do not return an error if the credentials are not in the keychain.
+			return auth.EmptyCredential, nil
+		}
 		return auth.EmptyCredential, err
 	}
 	var dockerCred dockerCredentials
