@@ -217,6 +217,90 @@ func Test_DynamicStore_authConfigured(t *testing.T) {
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
 	}
+	// Put() should not set detected store back to config
+	if got := ds.detectedCredsStore; got != "" {
+		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
+	}
+	if got := ds.config.CredentialsStore(); got != "" {
+		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
+	}
+
+	// test get
+	got, err := ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("DynamicStore.Get() error =", err)
+	}
+	if want := cred; got != want {
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
+	}
+
+	// test delete
+	err = ds.Delete(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("DynamicStore.Delete() error =", err)
+	}
+
+	// verify delete
+	got, err = ds.Get(ctx, serverAddr)
+	if err != nil {
+		t.Fatal("DynamicStore.Get() error =", err)
+	}
+	if want := auth.EmptyCredential; got != want {
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
+	}
+}
+
+func Test_DynamicStore_authConfigured_DetectDefaultNativeStore(t *testing.T) {
+	// prepare test content
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "auth_configured.json")
+	config := configtest.Config{
+		AuthConfigs: map[string]configtest.AuthConfig{
+			"xxx": {},
+		},
+		SomeConfigField: 123,
+	}
+	jsonStr, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	opts := StoreOptions{
+		AllowPlaintextPut:        true,
+		DetectDefaultNativeStore: true,
+	}
+	ds, err := NewStore(configPath, opts)
+	if err != nil {
+		t.Fatal("NewStore() error =", err)
+	}
+
+	// test IsAuthConfigured
+	authConfigured := ds.IsAuthConfigured()
+	if want := true; authConfigured != want {
+		t.Errorf("DynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
+	}
+
+	serverAddr := "test.example.com"
+	cred := auth.Credential{
+		Username: "username",
+		Password: "password",
+	}
+	ctx := context.Background()
+
+	// test put
+	if err := ds.Put(ctx, serverAddr, cred); err != nil {
+		t.Fatal("DynamicStore.Get() error =", err)
+	}
+	// Put() should not set detected store back to config
+	if got := ds.detectedCredsStore; got != "" {
+		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
+	}
+	if got := ds.config.CredentialsStore(); got != "" {
+		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
+	}
 
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
@@ -280,16 +364,15 @@ func Test_DynamicStore_noAuthConfigured(t *testing.T) {
 	if _, err := ds.Get(ctx, serverAddr); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
 	}
-	if got := ds.config.CredentialsStore(); got != "" {
-		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
-	}
 
 	// test put
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Put() error =", err)
 	}
-
 	// Put() should not set detected store back to config
+	if got := ds.detectedCredsStore; got != "" {
+		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
+	}
 	if got := ds.config.CredentialsStore(); got != "" {
 		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
 	}
@@ -356,9 +439,14 @@ func Test_DynamicStore_noAuthConfigured_DetectDefaultNativeStore(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	// Get() should not set detected store back to config
+	// Get() should set detectedCredsStore only, but should not save it back to config
 	if _, err := ds.Get(ctx, serverAddr); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
+	}
+	if defaultStore := getDefaultHelperSuffix(); defaultStore != "" {
+		if got := ds.detectedCredsStore; got != defaultStore {
+			t.Errorf("ds.detectedCredsStore = %v, want %v", got, defaultStore)
+		}
 	}
 	if got := ds.config.CredentialsStore(); got != "" {
 		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
@@ -369,11 +457,9 @@ func Test_DynamicStore_noAuthConfigured_DetectDefaultNativeStore(t *testing.T) {
 		t.Fatal("DynamicStore.Put() error =", err)
 	}
 
-	// Put() should set detected store back to config
-	if defaultStore := getDefaultHelperSuffix(); defaultStore != "" {
-		if got := ds.config.CredentialsStore(); got != defaultStore {
-			t.Errorf("ds.config.CredentialsStore() = %v, want %v", got, defaultStore)
-		}
+	// Put() should set the detected store back to config
+	if got := ds.config.CredentialsStore(); got != ds.detectedCredsStore {
+		t.Errorf("ds.config.CredentialsStore() = %v, want %v", got, ds.detectedCredsStore)
 	}
 
 	// test get
