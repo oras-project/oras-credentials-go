@@ -176,3 +176,12 @@ func TestNativeStore_errorHandling(t *testing.T) {
 		t.Fatalf("should not get error when no credentials are found")
 	}
 }
+
+func TestNewDefaultNativeStore(t *testing.T) {
+	defaultHelper := getDefaultHelperSuffix()
+	wantOK := (defaultHelper != "")
+
+	if _, ok := NewDefaultNativeStore(); ok != wantOK {
+		t.Errorf("NewDefaultNativeStore() = %v, want %v", ok, wantOK)
+	}
+}

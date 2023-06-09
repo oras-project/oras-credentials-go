@@ -63,6 +63,22 @@ func NewNativeStore(helperSuffix string) Store {
 	}
 }
 
+// NewDefaultNativeStore returns a native store based on the platform-default
+// docker credentials helper and a bool indicating if the native store is
+// available.
+//   - Windows: "wincred"
+//   - Linux: "pass" or "secretservice"
+//   - macOS: "osxkeychain"
+//
+// Reference:
+//   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+func NewDefaultNativeStore() (Store, bool) {
+	if helper := getDefaultHelperSuffix(); helper != "" {
+		return NewNativeStore(helper), true
+	}
+	return nil, false
+}
+
 // Get retrieves credentials from the store for the given server.
 func (ns *nativeStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	var cred auth.Credential

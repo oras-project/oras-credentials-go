@@ -1069,7 +1069,7 @@ func TestConfig_IsAuthConfigured(t *testing.T) {
 
 			cfg, err := Load(configPath)
 			if err != nil {
-				t.Fatal("LoadConfigFile() error =", err)
+				t.Fatal("Load() error =", err)
 			}
 			if got := cfg.IsAuthConfigured(); got != tt.want {
 				t.Errorf("IsAuthConfigured() = %v, want %v", got, tt.want)
@@ -1186,7 +1186,7 @@ func TestConfig_saveFile(t *testing.T) {
 
 			cfg, err := Load(configPath)
 			if err != nil {
-				t.Fatal("LoadConfigFile() error =", err)
+				t.Fatal("Load() error =", err)
 			}
 			cfg.credentialsStore = tt.newCfg.CredentialsStore
 			cfg.credentialHelpers = tt.newCfg.CredentialHelpers

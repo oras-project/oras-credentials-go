@@ -42,9 +42,9 @@ type Store interface {
 	Delete(ctx context.Context, serverAddress string) error
 }
 
-// dynamicStore dynamically determines which store to use based on the settings
+// DynamicStore dynamically determines which store to use based on the settings
 // in the config file.
-type dynamicStore struct {
+type DynamicStore struct {
 	config             *config.Config
 	options            StoreOptions
 	detectedCredsStore string
@@ -60,36 +60,45 @@ type StoreOptions struct {
 	//   - If AllowPlaintextPut is set to true, Put() will save credentials in
 	//     plaintext in the config file when native store is not available.
 	AllowPlaintextPut bool
+
+	// DetectDefaultCredsStore enables detecting the platform-default
+	// credentials store when the config file has no authentication information.
+	//
+	// If DetectDefaultCredsStore is set to true, the store will detect and set
+	// the default credentials store in the "credsStore" field of the config
+	// file.
+	//   - Windows: "wincred"
+	//   - Linux: "pass" or "secretservice"
+	//   - macOS: "osxkeychain"
+	//
+	// References:
+	//   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+	//   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
+	DetectDefaultCredsStore bool
 }
 
 // NewStore returns a Store based on the given configuration file.
 //
-// For Get(), Put() and Delete(), the returned Store will dynamically determine which underlying credentials
-// store to use for the given server address.
+// For Get(), Put() and Delete(), the returned Store will dynamically determine
+// which underlying credentials store to use for the given server address.
 // The  underlying credentials store  is determined in the following order:
 //  1. Native server-specific credential helper
 //  2. Native credentials store
 //  3. The plain-text config file itself
 //
-// If the config file has no authentication information, a platform-default
-// native store will be used.
-//   - Windows: "wincred"
-//   - Linux: "pass" or "secretservice"
-//   - macOS: "osxkeychain"
-//
 // References:
 //   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 //   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
-func NewStore(configPath string, opts StoreOptions) (Store, error) {
+func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
 	}
-	ds := &dynamicStore{
+	ds := &DynamicStore{
 		config:  cfg,
 		options: opts,
 	}
-	if !cfg.IsAuthConfigured() {
+	if opts.DetectDefaultCredsStore && !cfg.IsAuthConfigured() {
 		// no authentication configured, detect the default credentials store
 		ds.detectedCredsStore = getDefaultHelperSuffix()
 	}
@@ -106,7 +115,7 @@ func NewStore(configPath string, opts StoreOptions) (Store, error) {
 // References:
 //   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
 //   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
-func NewStoreFromDocker(opt StoreOptions) (Store, error) {
+func NewStoreFromDocker(opt StoreOptions) (*DynamicStore, error) {
 	configPath, err := getDockerConfigPath()
 	if err != nil {
 		return nil, err
@@ -115,14 +124,14 @@ func NewStoreFromDocker(opt StoreOptions) (Store, error) {
 }
 
 // Get retrieves credentials from the store for the given server address.
-func (ds *dynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
+func (ds *DynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	return ds.getStore(serverAddress).Get(ctx, serverAddress)
 }
 
 // Put saves credentials into the store for the given server address.
-// Returns ErrPlaintextPutDisabled if native store is not available and
-// StoreOptions.AllowPlaintextPut is set to false.
-func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
+// Put returns ErrPlaintextPutDisabled if native store is not available and
+// [StoreOptions].AllowPlaintextPut is set to false.
+func (ds *DynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
 	if err := ds.getStore(serverAddress).Put(ctx, serverAddress, cred); err != nil {
 		return err
 	}
@@ -138,13 +147,24 @@ func (ds *dynamicStore) Put(ctx context.Context, serverAddress string, cred auth
 }
 
 // Delete removes credentials from the store for the given server address.
-func (ds *dynamicStore) Delete(ctx context.Context, serverAddress string) error {
+func (ds *DynamicStore) Delete(ctx context.Context, serverAddress string) error {
 	return ds.getStore(serverAddress).Delete(ctx, serverAddress)
+}
+
+// IsAuthConfigured returns whether there is authentication configured in the
+// config file or not.
+//
+// IsAuthConfigured returns true when:
+//   - The "credsStore" field is not empty
+//   - Or the "credHelpers" field is not empty
+//   - Or there is any entry in the "auths" field
+func (ds *DynamicStore) IsAuthConfigured() bool {
+	return ds.config.IsAuthConfigured()
 }
 
 // getHelperSuffix returns the credential helper suffix for the given server
 // address.
-func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
+func (ds *DynamicStore) getHelperSuffix(serverAddress string) string {
 	// 1. Look for a server-specific credential helper first
 	if helper := ds.config.GetCredentialHelper(serverAddress); helper != "" {
 		return helper
@@ -158,7 +178,7 @@ func (ds *dynamicStore) getHelperSuffix(serverAddress string) string {
 }
 
 // getStore returns a store for the given server address.
-func (ds *dynamicStore) getStore(serverAddress string) Store {
+func (ds *DynamicStore) getStore(serverAddress string) Store {
 	if helper := ds.getHelperSuffix(serverAddress); helper != "" {
 		return NewNativeStore(helper)
 	}
