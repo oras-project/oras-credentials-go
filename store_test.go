@@ -47,7 +47,137 @@ func (s *badStore) Delete(ctx context.Context, serverAddress string) error {
 	return errBadStore
 }
 
-func Test_dynamicStore_authConfigured(t *testing.T) {
+func Test_DynamicStore_IsAuthConfigured(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name             string
+		fileName         string
+		shouldCreateFile bool
+		cfg              configtest.Config
+		want             bool
+	}{
+		{
+			name:             "not existing file",
+			fileName:         "config.json",
+			shouldCreateFile: false,
+			cfg:              configtest.Config{},
+			want:             false,
+		},
+		{
+			name:             "no auth",
+			fileName:         "config.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				SomeConfigField: 123,
+			},
+			want: false,
+		},
+		{
+			name:             "empty auths exist",
+			fileName:         "empty_auths.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{},
+			},
+			want: false,
+		},
+		{
+			name:             "auths exist, but no credential",
+			fileName:         "no_cred_auths.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{
+					"test.example.com": {},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "auths exist",
+			fileName:         "auths.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				AuthConfigs: map[string]configtest.AuthConfig{
+					"test.example.com": {
+						Auth: "dXNlcm5hbWU6cGFzc3dvcmQ=",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "credsStore exists",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				CredentialsStore: "teststore",
+			},
+			want: true,
+		},
+		{
+			name:             "empty credHelpers exist",
+			fileName:         "empty_credsStore.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				CredentialHelpers: map[string]string{},
+			},
+			want: false,
+		},
+		{
+			name:             "credHelpers exist",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				CredentialHelpers: map[string]string{
+					"test.example.com": "testhelper",
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "all exist",
+			fileName:         "credsStore.json",
+			shouldCreateFile: true,
+			cfg: configtest.Config{
+				SomeConfigField: 123,
+				AuthConfigs: map[string]configtest.AuthConfig{
+					"test.example.com": {},
+				},
+				CredentialsStore: "teststore",
+				CredentialHelpers: map[string]string{
+					"test.example.com": "testhelper",
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare test content
+			configPath := filepath.Join(tempDir, tt.fileName)
+			if tt.shouldCreateFile {
+				jsonStr, err := json.Marshal(tt.cfg)
+				if err != nil {
+					t.Fatalf("failed to marshal config: %v", err)
+				}
+				if err := os.WriteFile(configPath, jsonStr, 0666); err != nil {
+					t.Fatalf("failed to write config file: %v", err)
+				}
+			}
+
+			ds, err := NewStore(configPath, StoreOptions{})
+			if err != nil {
+				t.Fatal("newStore() error =", err)
+			}
+			if got := ds.IsAuthConfigured(); got != tt.want {
+				t.Errorf("DynamicStore.IsAuthConfigured() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_DynamicStore_authConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "auth_configured.json")
@@ -73,7 +203,7 @@ func Test_dynamicStore_authConfigured(t *testing.T) {
 	// test IsAuthConfigured
 	authConfigured := ds.IsAuthConfigured()
 	if want := true; authConfigured != want {
-		t.Errorf("dynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
+		t.Errorf("DynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
 	}
 
 	serverAddr := "test.example.com"
@@ -85,35 +215,35 @@ func Test_dynamicStore_authConfigured(t *testing.T) {
 
 	// test put
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := cred; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 
 	// test delete
 	err = ds.Delete(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Delete() error =", err)
+		t.Fatal("DynamicStore.Delete() error =", err)
 	}
 
 	// verify delete
 	got, err = ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := auth.EmptyCredential; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 }
 
-func Test_dynamicStore_noAuthConfigured(t *testing.T) {
+func Test_DynamicStore_noAuthConfigured(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "no_auth_configured.json")
@@ -136,7 +266,7 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 	// test IsAuthConfigured
 	authConfigured := ds.IsAuthConfigured()
 	if want := false; authConfigured != want {
-		t.Errorf("dynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
+		t.Errorf("DynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
 	}
 
 	serverAddr := "test.example.com"
@@ -148,7 +278,7 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 
 	// Get() should not set detected store back to config
 	if _, err := ds.Get(ctx, serverAddr); err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if got := ds.config.CredentialsStore(); got != "" {
 		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
@@ -156,7 +286,7 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 
 	// test put
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
-		t.Fatal("dynamicStore.Put() error =", err)
+		t.Fatal("DynamicStore.Put() error =", err)
 	}
 
 	// Put() should not set detected store back to config
@@ -167,29 +297,29 @@ func Test_dynamicStore_noAuthConfigured(t *testing.T) {
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := cred; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 
 	// test delete
 	err = ds.Delete(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Delete() error =", err)
+		t.Fatal("DynamicStore.Delete() error =", err)
 	}
 
 	// verify delete
 	got, err = ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := auth.EmptyCredential; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 }
 
-func Test_dynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
+func Test_DynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "no_auth_configured.json")
@@ -216,7 +346,7 @@ func Test_dynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 	// test IsAuthConfigured
 	authConfigured := ds.IsAuthConfigured()
 	if want := false; authConfigured != want {
-		t.Errorf("dynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
+		t.Errorf("DynamicStore.IsAuthConfigured() = %v, want %v", authConfigured, want)
 	}
 
 	serverAddr := "test.example.com"
@@ -228,7 +358,7 @@ func Test_dynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 
 	// Get() should not set detected store back to config
 	if _, err := ds.Get(ctx, serverAddr); err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if got := ds.config.CredentialsStore(); got != "" {
 		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
@@ -236,7 +366,7 @@ func Test_dynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 
 	// test put
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
-		t.Fatal("dynamicStore.Put() error =", err)
+		t.Fatal("DynamicStore.Put() error =", err)
 	}
 
 	// Put() should set detected store back to config
@@ -249,29 +379,29 @@ func Test_dynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := cred; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 
 	// test delete
 	err = ds.Delete(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Delete() error =", err)
+		t.Fatal("DynamicStore.Delete() error =", err)
 	}
 
 	// verify delete
 	got, err = ds.Get(ctx, serverAddr)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := auth.EmptyCredential; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 }
 
-func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
+func Test_DynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
@@ -303,7 +433,7 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 	err = ds.Put(ctx, serverAddr, cred)
 	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
-		t.Errorf("dynamicStore.Put() error = %v, wantErr %v", err, wantErr)
+		t.Errorf("DynamicStore.Put() error = %v, wantErr %v", err, wantErr)
 	}
 
 	// test AllowPlainTextPut = true
@@ -312,7 +442,7 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 		t.Fatal("NewStore() error =", err)
 	}
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
-		t.Error("dynamicStore.Put() error =", err)
+		t.Error("DynamicStore.Put() error =", err)
 	}
 
 	// verify config file
@@ -339,7 +469,7 @@ func Test_dynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 }
 
-func Test_dynamicStore_getHelperSuffix(t *testing.T) {
+func Test_DynamicStore_getHelperSuffix(t *testing.T) {
 	tests := []struct {
 		name          string
 		configPath    string
@@ -390,13 +520,13 @@ func Test_dynamicStore_getHelperSuffix(t *testing.T) {
 				t.Fatal("NewStore() error =", err)
 			}
 			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
-				t.Errorf("dynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
+				t.Errorf("DynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
+func Test_DynamicStore_getStore_nativeStore(t *testing.T) {
 	tests := []struct {
 		name          string
 		configPath    string
@@ -437,7 +567,7 @@ func Test_dynamicStore_getStore_nativeStore(t *testing.T) {
 	}
 }
 
-func Test_dynamicStore_getStore_fileStore(t *testing.T) {
+func Test_DynamicStore_getStore_fileStore(t *testing.T) {
 	tests := []struct {
 		name          string
 		configPath    string
@@ -724,10 +854,10 @@ func TestNewStoreFromDocker(t *testing.T) {
 	// test getting an existing credential
 	got, err := ds.Get(ctx, serverAddr1)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := cred1; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 
 	// test putting a new credential
@@ -737,30 +867,30 @@ func TestNewStoreFromDocker(t *testing.T) {
 		Password: "password",
 	}
 	if err := ds.Put(ctx, serverAddr2, cred2); err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 
 	// test getting the new credential
 	got, err = ds.Get(ctx, serverAddr2)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := cred2; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 
 	// test deleting the old credential
 	err = ds.Delete(ctx, serverAddr1)
 	if err != nil {
-		t.Fatal("dynamicStore.Delete() error =", err)
+		t.Fatal("DynamicStore.Delete() error =", err)
 	}
 
 	// verify delete
 	got, err = ds.Get(ctx, serverAddr1)
 	if err != nil {
-		t.Fatal("dynamicStore.Get() error =", err)
+		t.Fatal("DynamicStore.Get() error =", err)
 	}
 	if want := auth.EmptyCredential; got != want {
-		t.Errorf("dynamicStore.Get() = %v, want %v", got, want)
+		t.Errorf("DynamicStore.Get() = %v, want %v", got, want)
 	}
 }
