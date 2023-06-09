@@ -319,7 +319,7 @@ func Test_DynamicStore_noAuthConfigured(t *testing.T) {
 	}
 }
 
-func Test_DynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
+func Test_DynamicStore_noAuthConfigured_DetectDefaultNativeStore(t *testing.T) {
 	// prepare test content
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "no_auth_configured.json")
@@ -335,8 +335,8 @@ func Test_DynamicStore_noAuthConfigured_DetectDefaultStore(t *testing.T) {
 	}
 
 	opts := StoreOptions{
-		AllowPlaintextPut:       true,
-		DetectDefaultCredsStore: true,
+		AllowPlaintextPut:        true,
+		DetectDefaultNativeStore: true,
 	}
 	ds, err := NewStore(configPath, opts)
 	if err != nil {
