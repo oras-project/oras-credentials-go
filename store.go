@@ -17,7 +17,6 @@ package credentials
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -210,14 +209,11 @@ type storeWithFallbacks struct {
 }
 
 // NewStoreWithFallbacks returns a new store based on the given stores.
-//   - Get() searches the primary and the fallback stores for the credentials
-//     and returns when it finds the credentials in any of the stores.
-//   - Put() attempts to save the credentials into the primary store. If it
-//     encounters [ErrPlaintextPutDisabled], it will attempt to save the
-//     credentials into the fallback stores one by one, until it succeeds or
-//     encounters other errors than [ErrPlaintextPutDisabled].
-//   - Delete() removes the credentials from the primary store and all the
-//     fallback stores.
+//   - Get() searches the primary and the fallback stores
+//     for the credentials and returns when it finds the
+//     credentials in any of the stores.
+//   - Put() saves the credentials into the primary store.
+//   - Delete() deletes the credentials from the primary store.
 func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
 	if len(fallbacks) == 0 {
 		return primary
@@ -227,8 +223,9 @@ func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
 	}
 }
 
-// Get searches the primary and the fallback stores for the credentials of
-// serverAddress and returns when it finds the credentials in any of the stores.
+// Get retrieves credentials from the StoreWithFallbacks for the given server.
+// It searches the primary and the fallback stores for the credentials of serverAddress
+// and returns when it finds the credentials in any of the stores.
 func (sf *storeWithFallbacks) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	for _, s := range sf.stores {
 		cred, err := s.Get(ctx, serverAddress)
@@ -242,32 +239,14 @@ func (sf *storeWithFallbacks) Get(ctx context.Context, serverAddress string) (au
 	return auth.EmptyCredential, nil
 }
 
-// Put attempts to save the credentials into the primary store. If it encounters
-// ErrPlaintextPutDisabled, it will attempt to save the credentials into the
-// fallback stores one by one, until it succeeds or encounters other errors than
-// ErrPlaintextPutDisabled.
+// Put saves credentials into the StoreWithFallbacks. It puts
+// the credentials into the primary store.
 func (sf *storeWithFallbacks) Put(ctx context.Context, serverAddress string, cred auth.Credential) error {
-	var err error
-	for _, s := range sf.stores {
-		err = s.Put(ctx, serverAddress, cred)
-		if err == nil {
-			return nil
-		}
-		if !errors.Is(err, ErrPlaintextPutDisabled) {
-			return err
-		}
-		// fallback to the next store on ErrPlaintextPutDisabled
-	}
-	return err
+	return sf.stores[0].Put(ctx, serverAddress, cred)
 }
 
-// Delete removes the credentials from the primary store and all the fallback
-// stores.
+// Delete removes credentials from the StoreWithFallbacks for the given server.
+// It deletes the credentials from the primary store.
 func (sf *storeWithFallbacks) Delete(ctx context.Context, serverAddress string) error {
-	for _, s := range sf.stores {
-		if err := s.Delete(ctx, serverAddress); err != nil {
-			return err
-		}
-	}
-	return nil
+	return sf.stores[0].Delete(ctx, serverAddress)
 }

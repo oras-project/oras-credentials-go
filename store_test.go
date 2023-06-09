@@ -544,7 +544,7 @@ func Test_storeWithFallbacks_Get_throwError(t *testing.T) {
 	}
 }
 
-func Test_storeWithFallbacks_Put_noFallback(t *testing.T) {
+func Test_storeWithFallbacks_Put(t *testing.T) {
 	// prepare test content
 	cfg := configtest.Config{
 		SomeConfigField: 123,
@@ -588,94 +588,6 @@ func Test_storeWithFallbacks_Put_noFallback(t *testing.T) {
 	}
 }
 
-func Test_storeWithFallbacks_Put_fallbackOnErrPlaintextPutDisabled(t *testing.T) {
-	// prepare test content
-	cfg := configtest.Config{
-		SomeConfigField: 123,
-	}
-	jsonStr, err := json.Marshal(cfg)
-	if err != nil {
-		t.Fatalf("failed to marshal config: %v", err)
-	}
-	tempDir := t.TempDir()
-	configPath1 := filepath.Join(tempDir, "no_auth_configured_1.json")
-	if err := os.WriteFile(configPath1, jsonStr, 0666); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-	configPath2 := filepath.Join(tempDir, "no_auth_configured_1.json")
-	if err := os.WriteFile(configPath2, jsonStr, 0666); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-
-	ds1, err := NewStore(configPath1, StoreOptions{}) // plaintext disabled
-	if err != nil {
-		t.Fatalf("NewStore(%s) error = %v", configPath1, err)
-	}
-	ds2, err := NewStore(configPath2, StoreOptions{}) // plaintext disabled
-	if err != nil {
-		t.Fatalf("NewStore(%s) error = %v", configPath2, err)
-	}
-	fallbackStore := &testStore{}
-
-	sf := NewStoreWithFallbacks(ds1, ds2, fallbackStore)
-	ctx := context.Background()
-
-	server := "example.registry.com"
-	cred := auth.Credential{
-		Username: "username",
-		Password: "password",
-	}
-	// test Put()
-	if err := sf.Put(ctx, server, cred); err != nil {
-		t.Fatal("storeWithFallbacks.Put() error =", err)
-	}
-	// verify Get()
-	got, err := sf.Get(ctx, server)
-	if err != nil {
-		t.Fatal("storeWithFallbacks.Get() error =", err)
-	}
-	if want := cred; got != want {
-		t.Errorf("storeWithFallbacks.Get() = %v, want %v", got, want)
-	}
-}
-
-func Test_storeWithFallbacks_Put_throwErrPlaintextPutDisabled(t *testing.T) {
-	// prepare test content
-	cfg := configtest.Config{
-		SomeConfigField: 123,
-	}
-	jsonStr, err := json.Marshal(cfg)
-	if err != nil {
-		t.Fatalf("failed to marshal config: %v", err)
-	}
-	tempDir := t.TempDir()
-	configPath1 := filepath.Join(tempDir, "no_auth_configured_1.json")
-	if err := os.WriteFile(configPath1, jsonStr, 0666); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-	configPath2 := filepath.Join(tempDir, "no_auth_configured_1.json")
-	if err := os.WriteFile(configPath2, jsonStr, 0666); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-
-	ds1, err := NewStore(configPath1, StoreOptions{}) // plaintext disabled
-	if err != nil {
-		t.Fatalf("NewStore(%s) error = %v", configPath1, err)
-	}
-	ds2, err := NewStore(configPath2, StoreOptions{}) // plaintext disabled
-	if err != nil {
-		t.Fatalf("NewStore(%s) error = %v", configPath2, err)
-	}
-	sf := NewStoreWithFallbacks(ds1, ds2)
-	ctx := context.Background()
-
-	// test Put()
-	err = sf.Put(ctx, "whatever", auth.Credential{})
-	if wantErr := ErrPlaintextPutDisabled; !errors.Is(err, wantErr) {
-		t.Errorf("storeWithFallbacks.Put() error = %v, wantErr %v", err, wantErr)
-	}
-}
-
 func Test_storeWithFallbacks_Put_throwError(t *testing.T) {
 	badStore := &badStore{}
 	goodStore := &testStore{}
@@ -707,17 +619,8 @@ func Test_storeWithFallbacks_Delete(t *testing.T) {
 			server2: cred2,
 		},
 	}
-	fallbackStore1 := &testStore{
-		storage: map[string]auth.Credential{
-			server1: cred1,
-		},
-	}
-	fallbackStore2 := &testStore{
-		storage: map[string]auth.Credential{
-			server2: cred2,
-		},
-	}
-	sf := NewStoreWithFallbacks(primaryStore, fallbackStore1, fallbackStore2)
+	badStore := &badStore{}
+	sf := NewStoreWithFallbacks(primaryStore, badStore)
 	ctx := context.Background()
 
 	// test Delete(): server1
@@ -728,14 +631,6 @@ func Test_storeWithFallbacks_Delete(t *testing.T) {
 	if want := map[string]auth.Credential{server2: cred2}; !reflect.DeepEqual(primaryStore.storage, want) {
 		t.Errorf("primaryStore.storage = %v, want %v", primaryStore.storage, want)
 	}
-	// verify fallback store 1
-	if want := map[string]auth.Credential{}; !reflect.DeepEqual(fallbackStore1.storage, want) {
-		t.Errorf("fallbackStore1.storage = %v, want %v", fallbackStore1.storage, want)
-	}
-	// verify fallback store 2
-	if want := map[string]auth.Credential{server2: cred2}; !reflect.DeepEqual(fallbackStore2.storage, want) {
-		t.Errorf("fallbackStore2.storage = %v, want %v", fallbackStore2.storage, want)
-	}
 
 	// test Delete(): server2
 	if err := sf.Delete(ctx, server2); err != nil {
@@ -744,14 +639,6 @@ func Test_storeWithFallbacks_Delete(t *testing.T) {
 	// verify primary store
 	if want := map[string]auth.Credential{}; !reflect.DeepEqual(primaryStore.storage, want) {
 		t.Errorf("primaryStore.storage = %v, want %v", primaryStore.storage, want)
-	}
-	// verify fallback store 1
-	if want := map[string]auth.Credential{}; !reflect.DeepEqual(fallbackStore1.storage, want) {
-		t.Errorf("fallbackStore1.storage = %v, want %v", fallbackStore1.storage, want)
-	}
-	// verify fallback store 2
-	if want := map[string]auth.Credential{}; !reflect.DeepEqual(fallbackStore2.storage, want) {
-		t.Errorf("fallbackStore2.storage = %v, want %v", fallbackStore2.storage, want)
 	}
 }
 
