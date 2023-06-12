@@ -52,7 +52,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	if err := regClone.Ping(ctx); err != nil {
 		return fmt.Errorf("failed to validate the credential for %s: %w", regClone.Reference.Registry, err)
 	}
-	hostname := mapStoreRegistryName(regClone.Reference.Registry)
+	hostname := ServerAddressFromRegistry(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
 		return fmt.Errorf("failed to store the credential for %s: %w", hostname, err)
 	}
@@ -61,7 +61,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 
 // Logout provides the logout functionality given the registry name.
 func Logout(ctx context.Context, store Store, registryName string) error {
-	registryName = mapStoreRegistryName(registryName)
+	registryName = ServerAddressFromRegistry(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
 		return fmt.Errorf("failed to delete the credential for %s: %w", registryName, err)
 	}
@@ -71,7 +71,7 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 // Credential returns a Credential() function that can be used by auth.Client.
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
 	return func(ctx context.Context, reg string) (auth.Credential, error) {
-		reg = mapAuthenticationRegistryName(reg)
+		reg = ServerAddressFromHostname(reg)
 		if reg == "" {
 			return auth.EmptyCredential, nil
 		}
@@ -79,20 +79,22 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 	}
 }
 
-func mapStoreRegistryName(registry string) string {
-	// The Docker CLI expects that the 'docker.io' credential
-	// will be added under the key "https://index.docker.io/v1/"
-	// See: https://github.com/moby/moby/blob/v24.0.0-beta.2/registry/config.go#L25-L48
+// ServerAddressFromRegistry maps a registry to a server address, which is used as
+// a key for credentials store. The Docker CLI expects that the credentials of
+// the registry 'docker.io' will be added under the key "https://index.docker.io/v1/".
+// See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+func ServerAddressFromRegistry(registry string) string {
 	if registry == "docker.io" {
 		return "https://index.docker.io/v1/"
 	}
 	return registry
 }
 
-func mapAuthenticationRegistryName(hostname string) string {
-	// It is expected that the traffic targetting "registry-1.docker.io"
-	// will be redirected to "https://index.docker.io/v1/"
-	// See: https://github.com/moby/moby/blob/v24.0.0-beta.2/registry/config.go#L25-L48
+// ServerAddressFromHostname maps a hostname to a server address, which is used as
+// a key for credentials store. It is expected that the traffic targetting the
+// host "registry-1.docker.io" will be redirected to "https://index.docker.io/v1/".
+// See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+func ServerAddressFromHostname(hostname string) string {
 	if hostname == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
 	}
