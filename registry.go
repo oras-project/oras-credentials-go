@@ -50,11 +50,11 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 	authClient.Credential = auth.StaticCredential(reg.Reference.Registry, cred)
 	// validate and store the credential
 	if err := regClone.Ping(ctx); err != nil {
-		return fmt.Errorf("failed to validate the credential for %s: %w", regClone.Reference.Registry, err)
+		return fmt.Errorf("failed to validate the credentials for %s: %w", regClone.Reference.Registry, err)
 	}
 	hostname := ServerAddressFromRegistry(regClone.Reference.Registry)
 	if err := store.Put(ctx, hostname, cred); err != nil {
-		return fmt.Errorf("failed to store the credential for %s: %w", hostname, err)
+		return fmt.Errorf("failed to store the credentials for %s: %w", hostname, err)
 	}
 	return nil
 }
