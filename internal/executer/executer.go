@@ -26,6 +26,10 @@ import (
 	"os/exec"
 )
 
+// dockerDesktopHelperName is the name of the docker credentials helper
+// execuatable.
+const dockerDesktopHelperName = "docker-credential-desktop.exe"
+
 // Executer is an interface that simulates an executable binary.
 type Executer interface {
 	Execute(ctx context.Context, input io.Reader, action string) ([]byte, error)
@@ -50,9 +54,15 @@ func (c *executable) Execute(ctx context.Context, input io.Reader, action string
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
+		switch execErr := err.(type) {
+		case *exec.ExitError:
 			if errMessage := string(bytes.TrimSpace(output)); errMessage != "" {
-				err = errors.New(errMessage)
+				return nil, errors.New(errMessage)
+			}
+		case *exec.Error:
+			// check if the error is caused by Docker Desktop not running
+			if execErr.Err == exec.ErrNotFound && c.name == dockerDesktopHelperName {
+				return nil, errors.New("credentials store is configured to `desktop.exe` but Docker Desktop seems not running")
 			}
 		}
 		return nil, err
