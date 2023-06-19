@@ -190,7 +190,7 @@ func Test_mapHostname(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mapStoreRegistryName(tt.host); got != tt.want {
+			if got := ServerAddressFromRegistry(tt.host); got != tt.want {
 				t.Errorf("mapHostname() = %v, want %v", got, tt.want)
 			}
 		})
