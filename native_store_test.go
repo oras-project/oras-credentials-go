@@ -16,6 +16,7 @@ limitations under the License.
 package credentials
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,15 +24,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oras-project/oras-credentials-go/trace"
+
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 const (
 	basicAuthHost     = "localhost:2333"
-	bearerAuthHost    = "localhost:6666"
+	bearerAuthHost    = "localhost:666"
 	exeErrorHost      = "localhost:500/exeError"
 	jsonErrorHost     = "localhost:500/jsonError"
 	noCredentialsHost = "localhost:404"
+	traceHost         = "localhost:808"
 	testUsername      = "test_username"
 	testPassword      = "test_password"
 	testRefreshToken  = "test_token"
@@ -69,6 +73,13 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 			return []byte("json.Unmarshal failed"), nil
 		case noCredentialsHost:
 			return []byte("credentials not found"), errCredentialsNotFound
+		case traceHost:
+			traceHook := trace.ContextExecutableTrace(ctx)
+			if traceHook != nil {
+				traceHook.ExecuteStart("testExecuter", "get")
+				traceHook.ExecuteDone("testExecuter", "get", nil)
+			}
+			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
 		default:
 			return []byte("program failed"), errCommandExited
 		}
@@ -81,12 +92,26 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 		switch c.ServerURL {
 		case basicAuthHost, bearerAuthHost, exeErrorHost:
 			return nil, nil
+		case traceHost:
+			traceHook := trace.ContextExecutableTrace(ctx)
+			if traceHook != nil {
+				traceHook.ExecuteStart("testExecuter", "store")
+				traceHook.ExecuteDone("testExecuter", "store", nil)
+			}
+			return nil, nil
 		default:
 			return []byte("program failed"), errCommandExited
 		}
 	case "erase":
 		switch inS {
 		case basicAuthHost, bearerAuthHost:
+			return nil, nil
+		case traceHost:
+			traceHook := trace.ContextExecutableTrace(ctx)
+			if traceHook != nil {
+				traceHook.ExecuteStart("testExecuter", "erase")
+				traceHook.ExecuteDone("testExecuter", "erase", nil)
+			}
 			return nil, nil
 		default:
 			return []byte("program failed"), errCommandExited
@@ -183,5 +208,79 @@ func TestNewDefaultNativeStore(t *testing.T) {
 
 	if _, ok := NewDefaultNativeStore(); ok != wantOK {
 		t.Errorf("NewDefaultNativeStore() = %v, want %v", ok, wantOK)
+	}
+}
+
+func TestNativeStore_trace(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	// create trace hooks that write to buffer
+	buffer := bytes.Buffer{}
+	traceHook := &trace.ExecutableTrace{
+		ExecuteStart: func(executableName string, action string) {
+			buffer.WriteString(fmt.Sprintf("test trace, start the execution of executable %s with action %s ", executableName, action))
+		},
+		ExecuteDone: func(executableName string, action string, err error) {
+			buffer.WriteString(fmt.Sprintf("test trace, completed the execution of executable %s with action %s and got err %v", executableName, action, err))
+		},
+	}
+	ctx := trace.WithExecutableTrace(context.Background(), traceHook)
+	// Test ns.Put trace
+	err := ns.Put(ctx, traceHost, auth.Credential{Username: testUsername, Password: testPassword})
+	if err != nil {
+		t.Fatalf("trace test ns.Put fails: %v", err)
+	}
+	bufferContent := buffer.String()
+	if bufferContent != "test trace, start the execution of executable testExecuter with action store test trace, completed the execution of executable testExecuter with action store and got err <nil>" {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+	buffer.Reset()
+	// Test ns.Get trace
+	_, err = ns.Get(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("trace test ns.Get fails: %v", err)
+	}
+	bufferContent = buffer.String()
+	if bufferContent != "test trace, start the execution of executable testExecuter with action get test trace, completed the execution of executable testExecuter with action get and got err <nil>" {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+	buffer.Reset()
+	// Test ns.Delete trace
+	err = ns.Delete(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("trace test ns.Delete fails: %v", err)
+	}
+	bufferContent = buffer.String()
+	if bufferContent != "test trace, start the execution of executable testExecuter with action erase test trace, completed the execution of executable testExecuter with action erase and got err <nil>" {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+}
+
+// This test ensures that a nil trace will not cause an error.
+func TestNativeStore_noTrace(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	// Put
+	err := ns.Put(context.Background(), traceHost, auth.Credential{Username: testUsername, Password: testPassword})
+	if err != nil {
+		t.Fatalf("basic auth test ns.Put fails: %v", err)
+	}
+	// Get
+	cred, err := ns.Get(context.Background(), traceHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Get fails: %v", err)
+	}
+	if cred.Username != testUsername {
+		t.Fatal("incorrect username")
+	}
+	if cred.Password != testPassword {
+		t.Fatal("incorrect password")
+	}
+	// Delete
+	err = ns.Delete(context.Background(), traceHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Delete fails: %v", err)
 	}
 }
