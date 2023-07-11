@@ -19,7 +19,7 @@ import (
 	"context"
 )
 
-// executableTraceHookKey is a value key used to retrieve the ExecutableTrace
+// executableTraceContextKey is a value key used to retrieve the ExecutableTrace
 // from Context.
 type executableTraceContextKey struct{}
 
@@ -34,7 +34,8 @@ type ExecutableTrace struct {
 	// Reference:
 	//   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 	ExecuteStart func(executableName string, action string)
-	// ExecuteEnd is called after the execution of an executable completes.
+
+	// ExecuteDone is called after the execution of an executable completes.
 	// The executableName parameter is the name of the credential helper executable
 	// used with NativeStore. The action parameter is one of "store", "get" and
 	// "erase". The err parameter is the error (if any) returned from the execution.
@@ -44,14 +45,14 @@ type ExecutableTrace struct {
 	ExecuteDone func(executableName string, action string, err error)
 }
 
-// GetTraceHooksFromContext returns the ExecutableTrace associated with the context.
+// ContextExecutableTrace returns the ExecutableTrace associated with the context.
 // If none, it returns nil.
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	trace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
 	return trace
 }
 
-// WithTraceHooks takes a Context and an ExecutableTrace, and returns a Context with
+// WithExecutableTrace takes a Context and an ExecutableTrace, and returns a Context with
 // the ExecutableTrace added as a Value.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
 	if trace != nil {
