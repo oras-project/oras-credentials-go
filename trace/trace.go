@@ -23,8 +23,8 @@ import (
 // from Context.
 type executableTraceContextKey struct{}
 
-// ExecutableTrace is a set of hooks used to trace the execution of the binary
-// executable used with NativeStore. Any particular hook may be nil.
+// ExecutableTrace is a set of hooks used to trace the execution of binary
+// executables. Any particular hook may be nil.
 type ExecutableTrace struct {
 	// ExecuteStart is called before the execution of the executable. The
 	// executableName parameter is the name of the credential helper executable
@@ -55,8 +55,8 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 // WithExecutableTrace takes a Context and an ExecutableTrace, and returns a Context with
 // the ExecutableTrace added as a Value.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
-	if trace != nil {
-		ctx = context.WithValue(ctx, executableTraceContextKey{}, trace)
+	if trace == nil {
+		return ctx
 	}
-	return ctx
+	return context.WithValue(ctx, executableTraceContextKey{}, trace)
 }

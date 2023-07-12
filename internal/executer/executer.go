@@ -51,10 +51,10 @@ func New(name string) Executer {
 
 // Execute operates on an executable binary and supports context.
 func (c *executable) Execute(ctx context.Context, input io.Reader, action string) ([]byte, error) {
-	trace := trace.ContextExecutableTrace(ctx)
 	cmd := exec.CommandContext(ctx, c.name, action)
 	cmd.Stdin = input
 	cmd.Stderr = os.Stderr
+	trace := trace.ContextExecutableTrace(ctx)
 	if trace != nil && trace.ExecuteStart != nil {
 		trace.ExecuteStart(c.name, action)
 	}
