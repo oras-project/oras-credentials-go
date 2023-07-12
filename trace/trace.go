@@ -68,7 +68,8 @@ func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Co
 }
 
 // compose takes an oldTrace and modifies the existing trace to include
-// the hooks defined in the oldTrace.
+// the hooks defined in the oldTrace. The hooks in the existing trace will
+// be called first.
 func (trace *ExecutableTrace) compose(oldTrace *ExecutableTrace) {
 	oldStart := oldTrace.ExecuteStart
 	if oldStart != nil {
