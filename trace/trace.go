@@ -58,5 +58,30 @@ func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Co
 	if trace == nil {
 		return ctx
 	}
+	oldTrace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
+	if oldTrace != nil {
+		trace.compose(oldTrace)
+	}
 	return context.WithValue(ctx, executableTraceContextKey{}, trace)
+}
+
+// compose takes an oldTrace and modifies the existing trace to include
+// the hooks defined in the oldTrace.
+func (trace *ExecutableTrace) compose(oldTrace *ExecutableTrace) {
+	oldStart := oldTrace.ExecuteStart
+	if oldStart != nil {
+		start := trace.ExecuteStart
+		trace.ExecuteStart = func(executableName, action string) {
+			oldStart(executableName, action)
+			start(executableName, action)
+		}
+	}
+	oldDone := oldTrace.ExecuteDone
+	if oldDone != nil {
+		done := trace.ExecuteDone
+		trace.ExecuteDone = func(executableName, action string, err error) {
+			oldDone(executableName, action, err)
+			done(executableName, action, err)
+		}
+	}
 }

@@ -284,3 +284,59 @@ func TestNativeStore_noTrace(t *testing.T) {
 		t.Fatalf("basic auth test ns.Delete fails: %v", err)
 	}
 }
+
+func TestNativeStore_multipleTrace(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	// create trace hooks that write to buffer
+	buffer := bytes.Buffer{}
+	trace1 := &trace.ExecutableTrace{
+		ExecuteStart: func(executableName string, action string) {
+			buffer.WriteString(fmt.Sprintf("trace 1 start %s, %s ", executableName, action))
+		},
+		ExecuteDone: func(executableName string, action string, err error) {
+			buffer.WriteString(fmt.Sprintf("trace 1 done %s, %s ", executableName, action))
+		},
+	}
+	ctx := context.Background()
+	ctx = trace.WithExecutableTrace(ctx, trace1)
+	trace2 := &trace.ExecutableTrace{
+		ExecuteStart: func(executableName string, action string) {
+			buffer.WriteString(fmt.Sprintf("trace 2 start %s, %s ", executableName, action))
+		},
+		ExecuteDone: func(executableName string, action string, err error) {
+			buffer.WriteString(fmt.Sprintf("trace 2 done %s, %s ", executableName, action))
+		},
+	}
+	ctx = trace.WithExecutableTrace(ctx, trace2)
+	// Test ns.Put trace
+	err := ns.Put(ctx, traceHost, auth.Credential{Username: testUsername, Password: testPassword})
+	if err != nil {
+		t.Fatalf("trace test ns.Put fails: %v", err)
+	}
+	bufferContent := buffer.String()
+	if bufferContent != "trace 1 start testExecuter, store trace 2 start testExecuter, store trace 1 done testExecuter, store trace 2 done testExecuter, store " {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+	buffer.Reset()
+	// Test ns.Get trace
+	_, err = ns.Get(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("trace test ns.Get fails: %v", err)
+	}
+	bufferContent = buffer.String()
+	if bufferContent != "trace 1 start testExecuter, get trace 2 start testExecuter, get trace 1 done testExecuter, get trace 2 done testExecuter, get " {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+	buffer.Reset()
+	// Test ns.Delete trace
+	err = ns.Delete(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("trace test ns.Delete fails: %v", err)
+	}
+	bufferContent = buffer.String()
+	if bufferContent != "trace 1 start testExecuter, erase trace 2 start testExecuter, erase trace 1 done testExecuter, erase trace 2 done testExecuter, erase " {
+		t.Fatalf("incorrect buffer content: %s", bufferContent)
+	}
+}
