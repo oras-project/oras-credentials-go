@@ -60,7 +60,7 @@ func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Co
 	if trace == nil {
 		return ctx
 	}
-	oldTrace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
+	oldTrace := ContextExecutableTrace(ctx)
 	if oldTrace != nil {
 		trace.compose(oldTrace)
 	}
@@ -74,17 +74,25 @@ func (trace *ExecutableTrace) compose(oldTrace *ExecutableTrace) {
 	oldStart := oldTrace.ExecuteStart
 	if oldStart != nil {
 		start := trace.ExecuteStart
-		trace.ExecuteStart = func(executableName, action string) {
-			start(executableName, action)
-			oldStart(executableName, action)
+		if start != nil {
+			trace.ExecuteStart = func(executableName, action string) {
+				start(executableName, action)
+				oldStart(executableName, action)
+			}
+		} else {
+			trace.ExecuteStart = oldStart
 		}
 	}
 	oldDone := oldTrace.ExecuteDone
 	if oldDone != nil {
 		done := trace.ExecuteDone
-		trace.ExecuteDone = func(executableName, action string, err error) {
-			done(executableName, action, err)
-			oldDone(executableName, action, err)
+		if done != nil {
+			trace.ExecuteDone = func(executableName, action string, err error) {
+				done(executableName, action, err)
+				oldDone(executableName, action, err)
+			}
+		} else {
+			trace.ExecuteDone = oldDone
 		}
 	}
 }
