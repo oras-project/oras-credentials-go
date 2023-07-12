@@ -53,7 +53,9 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 }
 
 // WithExecutableTrace takes a Context and an ExecutableTrace, and returns a Context with
-// the ExecutableTrace added as a Value.
+// the ExecutableTrace added as a Value. If the Context has a previously added trace,
+// the hooks defined in the new trace will be added in addition to the previous ones.
+// The recent hooks will be called first.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
 	if trace == nil {
 		return ctx
@@ -72,16 +74,16 @@ func (trace *ExecutableTrace) compose(oldTrace *ExecutableTrace) {
 	if oldStart != nil {
 		start := trace.ExecuteStart
 		trace.ExecuteStart = func(executableName, action string) {
-			oldStart(executableName, action)
 			start(executableName, action)
+			oldStart(executableName, action)
 		}
 	}
 	oldDone := oldTrace.ExecuteDone
 	if oldDone != nil {
 		done := trace.ExecuteDone
 		trace.ExecuteDone = func(executableName, action string, err error) {
-			oldDone(executableName, action, err)
 			done(executableName, action, err)
+			oldDone(executableName, action, err)
 		}
 	}
 }

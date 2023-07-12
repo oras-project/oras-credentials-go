@@ -316,7 +316,7 @@ func TestNativeStore_multipleTrace(t *testing.T) {
 		t.Fatalf("trace test ns.Put fails: %v", err)
 	}
 	bufferContent := buffer.String()
-	if bufferContent != "trace 1 start testExecuter, store trace 2 start testExecuter, store trace 1 done testExecuter, store trace 2 done testExecuter, store " {
+	if bufferContent != "trace 2 start testExecuter, store trace 1 start testExecuter, store trace 2 done testExecuter, store trace 1 done testExecuter, store " {
 		t.Fatalf("incorrect buffer content: %s", bufferContent)
 	}
 	buffer.Reset()
@@ -326,7 +326,7 @@ func TestNativeStore_multipleTrace(t *testing.T) {
 		t.Fatalf("trace test ns.Get fails: %v", err)
 	}
 	bufferContent = buffer.String()
-	if bufferContent != "trace 1 start testExecuter, get trace 2 start testExecuter, get trace 1 done testExecuter, get trace 2 done testExecuter, get " {
+	if bufferContent != "trace 2 start testExecuter, get trace 1 start testExecuter, get trace 2 done testExecuter, get trace 1 done testExecuter, get " {
 		t.Fatalf("incorrect buffer content: %s", bufferContent)
 	}
 	buffer.Reset()
@@ -336,7 +336,7 @@ func TestNativeStore_multipleTrace(t *testing.T) {
 		t.Fatalf("trace test ns.Delete fails: %v", err)
 	}
 	bufferContent = buffer.String()
-	if bufferContent != "trace 1 start testExecuter, erase trace 2 start testExecuter, erase trace 1 done testExecuter, erase trace 2 done testExecuter, erase " {
+	if bufferContent != "trace 2 start testExecuter, erase trace 1 start testExecuter, erase trace 2 done testExecuter, erase trace 1 done testExecuter, erase " {
 		t.Fatalf("incorrect buffer content: %s", bufferContent)
 	}
 }
