@@ -36,17 +36,18 @@ type ExecutableTrace struct {
 	ExecuteStart func(executableName string, action string)
 
 	// ExecuteDone is called after the execution of an executable completes.
-	// The executableName parameter is the name of the credential helper executable
-	// used with NativeStore. The action parameter is one of "store", "get" and
-	// "erase". The err parameter is the error (if any) returned from the execution.
+	// The executableName parameter is the name of the credential helper
+	// executable used with NativeStore. The action parameter is one of "store",
+	// "get" and "erase". The err parameter is the error (if any) returned from
+	// the execution.
 	//
 	// Reference:
 	//   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 	ExecuteDone func(executableName string, action string, err error)
 }
 
-// ContextExecutableTrace returns the ExecutableTrace associated with the context.
-// If none, it returns nil.
+// ContextExecutableTrace returns the ExecutableTrace associated with the
+// context. If none, it returns nil.
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	trace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
 	return trace
