@@ -75,8 +75,12 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 		case traceHost:
 			traceHook := trace.ContextExecutableTrace(ctx)
 			if traceHook != nil {
-				traceHook.ExecuteStart("testExecuter", "get")
-				traceHook.ExecuteDone("testExecuter", "get", nil)
+				if traceHook.ExecuteStart != nil {
+					traceHook.ExecuteStart("testExecuter", "get")
+				}
+				if traceHook.ExecuteDone != nil {
+					traceHook.ExecuteDone("testExecuter", "get", nil)
+				}
 			}
 			return []byte(`{"Username": "test_username", "Secret": "test_password"}`), nil
 		default:
@@ -94,8 +98,12 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 		case traceHost:
 			traceHook := trace.ContextExecutableTrace(ctx)
 			if traceHook != nil {
-				traceHook.ExecuteStart("testExecuter", "store")
-				traceHook.ExecuteDone("testExecuter", "store", nil)
+				if traceHook.ExecuteStart != nil {
+					traceHook.ExecuteStart("testExecuter", "store")
+				}
+				if traceHook.ExecuteDone != nil {
+					traceHook.ExecuteDone("testExecuter", "store", nil)
+				}
 			}
 			return nil, nil
 		default:
@@ -108,8 +116,12 @@ func (e *testExecuter) Execute(ctx context.Context, input io.Reader, action stri
 		case traceHost:
 			traceHook := trace.ContextExecutableTrace(ctx)
 			if traceHook != nil {
-				traceHook.ExecuteStart("testExecuter", "erase")
-				traceHook.ExecuteDone("testExecuter", "erase", nil)
+				if traceHook.ExecuteStart != nil {
+					traceHook.ExecuteStart("testExecuter", "erase")
+				}
+				if traceHook.ExecuteDone != nil {
+					traceHook.ExecuteDone("testExecuter", "erase", nil)
+				}
 			}
 			return nil, nil
 		default:
@@ -284,6 +296,36 @@ func TestNativeStore_noTrace(t *testing.T) {
 	}
 }
 
+// This test ensures that an empty trace will not cause an error.
+func TestNativeStore_emptyTrace(t *testing.T) {
+	ns := &nativeStore{
+		&testExecuter{},
+	}
+	traceHook := &trace.ExecutableTrace{}
+	ctx := trace.WithExecutableTrace(context.Background(), traceHook)
+	// Put
+	err := ns.Put(ctx, traceHost, auth.Credential{Username: testUsername, Password: testPassword})
+	if err != nil {
+		t.Fatalf("basic auth test ns.Put fails: %v", err)
+	}
+	// Get
+	cred, err := ns.Get(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Get fails: %v", err)
+	}
+	if cred.Username != testUsername {
+		t.Fatal("incorrect username")
+	}
+	if cred.Password != testPassword {
+		t.Fatal("incorrect password")
+	}
+	// Delete
+	err = ns.Delete(ctx, traceHost)
+	if err != nil {
+		t.Fatalf("basic auth test ns.Delete fails: %v", err)
+	}
+}
+
 func TestNativeStore_multipleTrace(t *testing.T) {
 	ns := &nativeStore{
 		&testExecuter{},
@@ -309,6 +351,8 @@ func TestNativeStore_multipleTrace(t *testing.T) {
 		},
 	}
 	ctx = trace.WithExecutableTrace(ctx, trace2)
+	trace3 := &trace.ExecutableTrace{}
+	ctx = trace.WithExecutableTrace(ctx, trace3)
 	// Test ns.Put trace
 	err := ns.Put(ctx, traceHost, auth.Credential{Username: testUsername, Password: testPassword})
 	if err != nil {

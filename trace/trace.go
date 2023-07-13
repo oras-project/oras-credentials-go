@@ -52,10 +52,10 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	return trace
 }
 
-// WithExecutableTrace takes a Context and an ExecutableTrace, and returns a Context with
-// the ExecutableTrace added as a Value. If the Context has a previously added trace,
-// the hooks defined in the new trace will be added in addition to the previous ones.
-// The recent hooks will be called first.
+// WithExecutableTrace takes a Context and an ExecutableTrace, and returns a
+// Context with the ExecutableTrace added as a Value. If the Context has a
+// previously added trace, the hooks defined in the new trace will be added
+// in addition to the previous ones. The recent hooks will be called first.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
 	if trace == nil {
 		return ctx
