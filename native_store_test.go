@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/oras-project/oras-credentials-go/trace"
-
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
