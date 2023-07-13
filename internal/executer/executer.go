@@ -24,6 +24,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/oras-project/oras-credentials-go/trace"
 )
 
 // dockerDesktopHelperName is the name of the docker credentials helper
@@ -52,7 +54,14 @@ func (c *executable) Execute(ctx context.Context, input io.Reader, action string
 	cmd := exec.CommandContext(ctx, c.name, action)
 	cmd.Stdin = input
 	cmd.Stderr = os.Stderr
+	trace := trace.ContextExecutableTrace(ctx)
+	if trace != nil && trace.ExecuteStart != nil {
+		trace.ExecuteStart(c.name, action)
+	}
 	output, err := cmd.Output()
+	if trace != nil && trace.ExecuteDone != nil {
+		trace.ExecuteDone(c.name, action, err)
+	}
 	if err != nil {
 		switch execErr := err.(type) {
 		case *exec.ExitError:
