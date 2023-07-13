@@ -11,6 +11,11 @@
 <a href="https://oras.land/"><img src="https://oras.land/img/oras.svg" alt="banner" width="100px"></a>
 </p>
 
+`oras-credentials-go` is a credential management library designed for `oras-go`. It supports reading, saving, and removing credentials from Docker configuration files and external credential stores that follow the [Docker credential helper protocol](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol), while not handling credential encryption and decryption. 
+
+Once stable, this library will be merged into `oras-go`.
+
+
 ## Versioning
 
 The `oras-credentials-go` library follows [Semantic Versioning](https://semver.org/), where breaking changes are reserved for MAJOR releases, and MINOR and PATCH releases must be 100% backwards compatible.
