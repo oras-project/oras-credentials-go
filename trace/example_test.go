@@ -22,24 +22,19 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+// An example on how to use ExecutableTrace with Stores.
 func Example() {
-	// ExecutableTrace is used to define trace hooks that track the
-	// execution of local credential helper executables, and it works with
-	// the credentials.Store interface. The defined hooks will run whenever
-	// a credential helper executable is executed. Multiple ExecutableTrace
-	// can be defined and used, and recently added ExecutableTrace is called
-	// first.
+	// ExecutableTrace works with all Stores that may invoke executables, for
+	// example the Store returned from NewStore and NewNativeStore.
 	store, err := credentials.NewStore("example/path/config.json", credentials.StoreOptions{})
 	if err != nil {
 		panic(err)
 	}
 
-	// define traceHooks and add it to the context. The 'action' argument refers
-	// to one of 'store', 'get' and 'erase' defined by the docker credential
-	// helper protocol.
-	//
-	// Reference:
-	//   - https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol
+	// Define ExecutableTrace and add it to the context. The 'action' argument
+	// refers to one of 'store', 'get' and 'erase' defined by the docker
+	// credential helper protocol.
+	// Reference: https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol
 	traceHooks := &trace.ExecutableTrace{
 		ExecuteStart: func(executableName string, action string) {
 			fmt.Printf("executable %s, action %s started", executableName, action)
@@ -56,11 +51,13 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
+
 	cred, err := store.Get(ctx, "localhost:5000")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(cred)
+
 	err = store.Delete(ctx, "localhost:5000")
 	if err != nil {
 		panic(err)
