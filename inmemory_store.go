@@ -17,13 +17,15 @@ package credentials
 
 import (
 	"context"
+	"sync"
 
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
 // InMemoryStore is a store that keeps credentials in memory.
 type InMemoryStore struct {
-	store map[string]auth.Credential
+	rwLock sync.RWMutex
+	store  map[string]auth.Credential
 }
 
 // NewInMemoryStore creates a new in-memory credentials store.
@@ -33,6 +35,9 @@ func NewInMemoryStore() *InMemoryStore {
 
 // Get retrieves credentials from the store for the given server address.
 func (is *InMemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
+	is.rwLock.RLock()
+	defer is.rwLock.RUnlock()
+
 	cred, found := is.store[serverAddress]
 	if !found {
 		return auth.EmptyCredential, nil
@@ -42,12 +47,18 @@ func (is *InMemoryStore) Get(_ context.Context, serverAddress string) (auth.Cred
 
 // Put saves credentials into the store for the given server address.
 func (is *InMemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+	is.rwLock.Lock()
+	defer is.rwLock.Unlock()
+
 	is.store[serverAddress] = cred
 	return nil
 }
 
 // Delete removes credentials from the store for the given server address.
 func (is *InMemoryStore) Delete(_ context.Context, serverAddress string) error {
+	is.rwLock.Lock()
+	defer is.rwLock.Unlock()
+
 	delete(is.store, serverAddress)
 	return nil
 }
