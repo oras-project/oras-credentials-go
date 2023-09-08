@@ -29,7 +29,7 @@ type InMemoryStore struct {
 
 // NewInMemoryStore creates a new in-memory credentials store.
 func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{store: sync.Map{}}
+	return &InMemoryStore{}
 }
 
 // Get retrieves credentials from the store for the given server address.
