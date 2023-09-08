@@ -23,24 +23,24 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-func TestInMemoryStore_Get_notExistRecord(t *testing.T) {
+func TestMemoryStore_Get_notExistRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	serverAddress := "registry.example.com"
 	got, err := is.Get(ctx, serverAddress)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got, auth.EmptyCredential) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got, auth.EmptyCredential)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got, auth.EmptyCredential)
 	}
 }
 
-func TestInMemoryStore_Get_validRecord(t *testing.T) {
+func TestMemoryStore_Get_validRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	serverAddress := "registry.example.com"
 	want := auth.Credential{
@@ -53,17 +53,17 @@ func TestInMemoryStore_Get_validRecord(t *testing.T) {
 
 	got, err := is.Get(ctx, serverAddress)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got, want)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got, want)
 	}
 }
 
-func TestInMemoryStore_Put_addNew(t *testing.T) {
+func TestMemoryStore_Put_addNew(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	// Test Put
 	server1 := "registry.example.com"
@@ -74,7 +74,7 @@ func TestInMemoryStore_Put_addNew(t *testing.T) {
 		AccessToken:  "registry_token",
 	}
 	if err := is.Put(ctx, server1, cred1); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
@@ -86,35 +86,35 @@ func TestInMemoryStore_Put_addNew(t *testing.T) {
 		AccessToken:  "registry_token2",
 	}
 	if err := is.Put(ctx, server2, cred2); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Verify Content
 	got1, err := is.Get(ctx, server1)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got1, cred1) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got1, cred1)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got1, cred1)
 		return
 	}
 
 	got2, err := is.Get(ctx, server2)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got2, cred2) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got2, cred2)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got2, cred2)
 		return
 	}
 }
 
-func TestInMemoryStore_Put_update(t *testing.T) {
+func TestMemoryStore_Put_update(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -125,7 +125,7 @@ func TestInMemoryStore_Put_update(t *testing.T) {
 		AccessToken:  "registry_token",
 	}
 	if err := is.Put(ctx, serverAddress, cred1); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
@@ -136,24 +136,24 @@ func TestInMemoryStore_Put_update(t *testing.T) {
 		AccessToken:  "registry_token2",
 	}
 	if err := is.Put(ctx, serverAddress, cred2); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	got, err := is.Get(ctx, serverAddress)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got, cred2) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got, cred2)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got, cred2)
 		return
 	}
 }
 
-func TestInMemoryStore_Delete_existRecord(t *testing.T) {
+func TestMemoryStore_Delete_existRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -164,42 +164,42 @@ func TestInMemoryStore_Delete_existRecord(t *testing.T) {
 		AccessToken:  "registry_token",
 	}
 	if err := is.Put(ctx, serverAddress, cred); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Test Get
 	got, err := is.Get(ctx, serverAddress)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got, cred) {
-		t.Errorf("InMemoryStore.Get(%s) = %v, want %v", serverAddress, got, cred)
+		t.Errorf("MemoryStore.Get(%s) = %v, want %v", serverAddress, got, cred)
 		return
 	}
 
 	// Test Delete
 	if err := is.Delete(ctx, serverAddress); err != nil {
-		t.Errorf("InMemoryStore.Delete() error = %v", err)
+		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
 
 	// Test Get again
 	got, err = is.Get(ctx, serverAddress)
 	if err != nil {
-		t.Errorf("InMemoryStore.Get() error = %v", err)
+		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
 	}
 	if !reflect.DeepEqual(got, auth.EmptyCredential) {
-		t.Errorf("InMemoryStore.Get() = %v, want %v", got, auth.EmptyCredential)
+		t.Errorf("MemoryStore.Get() = %v, want %v", got, auth.EmptyCredential)
 		return
 	}
 }
 
-func TestInMemoryStore_Delete_notExistRecord(t *testing.T) {
+func TestMemoryStore_Delete_notExistRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewInMemoryStore()
+	is := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -210,20 +210,20 @@ func TestInMemoryStore_Delete_notExistRecord(t *testing.T) {
 		AccessToken:  "registry_token",
 	}
 	if err := is.Put(ctx, serverAddress, cred); err != nil {
-		t.Errorf("InMemoryStore.Put() error = %v", err)
+		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Test Delete
 	if err := is.Delete(ctx, serverAddress); err != nil {
-		t.Errorf("InMemoryStore.Delete() error = %v", err)
+		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
 
 	// Test Delete again
 	// Expect no error if target record does not exist
 	if err := is.Delete(ctx, serverAddress); err != nil {
-		t.Errorf("InMemoryStore.Delete() error = %v", err)
+		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
 }
