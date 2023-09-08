@@ -49,7 +49,7 @@ func TestInMemoryStore_Get_validRecord(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	is.store[serverAddress] = want
+	is.store.Store(serverAddress, want)
 
 	got, err := is.Get(ctx, serverAddress)
 	if err != nil {

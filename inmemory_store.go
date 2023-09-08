@@ -24,41 +24,31 @@ import (
 
 // InMemoryStore is a store that keeps credentials in memory.
 type InMemoryStore struct {
-	rwLock sync.RWMutex
-	store  map[string]auth.Credential
+	store sync.Map
 }
 
 // NewInMemoryStore creates a new in-memory credentials store.
 func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{store: map[string]auth.Credential{}}
+	return &InMemoryStore{store: sync.Map{}}
 }
 
 // Get retrieves credentials from the store for the given server address.
 func (is *InMemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	is.rwLock.RLock()
-	defer is.rwLock.RUnlock()
-
-	cred, found := is.store[serverAddress]
+	cred, found := is.store.Load(serverAddress)
 	if !found {
 		return auth.EmptyCredential, nil
 	}
-	return cred, nil
+	return cred.(auth.Credential), nil
 }
 
 // Put saves credentials into the store for the given server address.
 func (is *InMemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
-	is.rwLock.Lock()
-	defer is.rwLock.Unlock()
-
-	is.store[serverAddress] = cred
+	is.store.Store(serverAddress, cred)
 	return nil
 }
 
 // Delete removes credentials from the store for the given server address.
 func (is *InMemoryStore) Delete(_ context.Context, serverAddress string) error {
-	is.rwLock.Lock()
-	defer is.rwLock.Unlock()
-
-	delete(is.store, serverAddress)
+	is.store.Delete(serverAddress)
 	return nil
 }
