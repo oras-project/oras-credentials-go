@@ -33,8 +33,8 @@ func NewMemoryStore() *MemoryStore {
 }
 
 // Get retrieves credentials from the store for the given server address.
-func (is *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	cred, found := is.store.Load(serverAddress)
+func (ms *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
+	cred, found := ms.store.Load(serverAddress)
 	if !found {
 		return auth.EmptyCredential, nil
 	}
@@ -42,13 +42,13 @@ func (is *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Creden
 }
 
 // Put saves credentials into the store for the given server address.
-func (is *MemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
-	is.store.Store(serverAddress, cred)
+func (ms *MemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
+	ms.store.Store(serverAddress, cred)
 	return nil
 }
 
 // Delete removes credentials from the store for the given server address.
-func (is *MemoryStore) Delete(_ context.Context, serverAddress string) error {
-	is.store.Delete(serverAddress)
+func (ms *MemoryStore) Delete(_ context.Context, serverAddress string) error {
+	ms.store.Delete(serverAddress)
 	return nil
 }

@@ -25,10 +25,10 @@ import (
 
 func TestMemoryStore_Get_notExistRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	serverAddress := "registry.example.com"
-	got, err := is.Get(ctx, serverAddress)
+	got, err := ms.Get(ctx, serverAddress)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -40,7 +40,7 @@ func TestMemoryStore_Get_notExistRecord(t *testing.T) {
 
 func TestMemoryStore_Get_validRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	serverAddress := "registry.example.com"
 	want := auth.Credential{
@@ -49,9 +49,9 @@ func TestMemoryStore_Get_validRecord(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	is.store.Store(serverAddress, want)
+	ms.store.Store(serverAddress, want)
 
-	got, err := is.Get(ctx, serverAddress)
+	got, err := ms.Get(ctx, serverAddress)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -63,7 +63,7 @@ func TestMemoryStore_Get_validRecord(t *testing.T) {
 
 func TestMemoryStore_Put_addNew(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	// Test Put
 	server1 := "registry.example.com"
@@ -73,7 +73,7 @@ func TestMemoryStore_Put_addNew(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	if err := is.Put(ctx, server1, cred1); err != nil {
+	if err := ms.Put(ctx, server1, cred1); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
@@ -85,13 +85,13 @@ func TestMemoryStore_Put_addNew(t *testing.T) {
 		RefreshToken: "identity_token2",
 		AccessToken:  "registry_token2",
 	}
-	if err := is.Put(ctx, server2, cred2); err != nil {
+	if err := ms.Put(ctx, server2, cred2); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Verify Content
-	got1, err := is.Get(ctx, server1)
+	got1, err := ms.Get(ctx, server1)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -101,7 +101,7 @@ func TestMemoryStore_Put_addNew(t *testing.T) {
 		return
 	}
 
-	got2, err := is.Get(ctx, server2)
+	got2, err := ms.Get(ctx, server2)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -114,7 +114,7 @@ func TestMemoryStore_Put_addNew(t *testing.T) {
 
 func TestMemoryStore_Put_update(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -124,7 +124,7 @@ func TestMemoryStore_Put_update(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	if err := is.Put(ctx, serverAddress, cred1); err != nil {
+	if err := ms.Put(ctx, serverAddress, cred1); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
@@ -135,12 +135,12 @@ func TestMemoryStore_Put_update(t *testing.T) {
 		RefreshToken: "identity_token2",
 		AccessToken:  "registry_token2",
 	}
-	if err := is.Put(ctx, serverAddress, cred2); err != nil {
+	if err := ms.Put(ctx, serverAddress, cred2); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
-	got, err := is.Get(ctx, serverAddress)
+	got, err := ms.Get(ctx, serverAddress)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -153,7 +153,7 @@ func TestMemoryStore_Put_update(t *testing.T) {
 
 func TestMemoryStore_Delete_existRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -163,13 +163,13 @@ func TestMemoryStore_Delete_existRecord(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	if err := is.Put(ctx, serverAddress, cred); err != nil {
+	if err := ms.Put(ctx, serverAddress, cred); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Test Get
-	got, err := is.Get(ctx, serverAddress)
+	got, err := ms.Get(ctx, serverAddress)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -180,13 +180,13 @@ func TestMemoryStore_Delete_existRecord(t *testing.T) {
 	}
 
 	// Test Delete
-	if err := is.Delete(ctx, serverAddress); err != nil {
+	if err := ms.Delete(ctx, serverAddress); err != nil {
 		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
 
 	// Test Get again
-	got, err = is.Get(ctx, serverAddress)
+	got, err = ms.Get(ctx, serverAddress)
 	if err != nil {
 		t.Errorf("MemoryStore.Get() error = %v", err)
 		return
@@ -199,7 +199,7 @@ func TestMemoryStore_Delete_existRecord(t *testing.T) {
 
 func TestMemoryStore_Delete_notExistRecord(t *testing.T) {
 	ctx := context.Background()
-	is := NewMemoryStore()
+	ms := NewMemoryStore()
 
 	// Test Put
 	serverAddress := "registry.example.com"
@@ -209,20 +209,20 @@ func TestMemoryStore_Delete_notExistRecord(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	if err := is.Put(ctx, serverAddress, cred); err != nil {
+	if err := ms.Put(ctx, serverAddress, cred); err != nil {
 		t.Errorf("MemoryStore.Put() error = %v", err)
 		return
 	}
 
 	// Test Delete
-	if err := is.Delete(ctx, serverAddress); err != nil {
+	if err := ms.Delete(ctx, serverAddress); err != nil {
 		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
 
 	// Test Delete again
 	// Expect no error if target record does not exist
-	if err := is.Delete(ctx, serverAddress); err != nil {
+	if err := ms.Delete(ctx, serverAddress); err != nil {
 		t.Errorf("MemoryStore.Delete() error = %v", err)
 		return
 	}
