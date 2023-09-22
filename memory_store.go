@@ -25,7 +25,7 @@ import (
 // MemoryStore is a store that keeps credentials in memory.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type MemoryStore struct {
 	store sync.Map
 }
@@ -33,7 +33,7 @@ type MemoryStore struct {
 // NewMemoryStore creates a new in-memory credentials store.
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{}
 }
@@ -41,7 +41,7 @@ func NewMemoryStore() *MemoryStore {
 // Get retrieves credentials from the store for the given server address.
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ms *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
 	cred, found := ms.store.Load(serverAddress)
 	if !found {
@@ -53,7 +53,7 @@ func (ms *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Creden
 // Put saves credentials into the store for the given server address.
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ms *MemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	ms.store.Store(serverAddress, cred)
 	return nil
@@ -62,7 +62,7 @@ func (ms *MemoryStore) Put(_ context.Context, serverAddress string, cred auth.Cr
 // Delete removes credentials from the store for the given server address.
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ms *MemoryStore) Delete(_ context.Context, serverAddress string) error {
 	ms.store.Delete(serverAddress)
 	return nil

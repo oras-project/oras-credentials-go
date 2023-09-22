@@ -14,9 +14,9 @@ limitations under the License.
 */
 
 // Deprecated: This package is deprecated.
-// The same functionality is now provided by [oras-go v2].
+// The same functionality is now provided by [oras-go].
 //
-// [oras-go v2]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace
+// [oras-go]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace
 package trace
 
 import (
@@ -31,7 +31,7 @@ type executableTraceContextKey struct{}
 // executables. Any particular hook may be nil.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type ExecutableTrace struct {
 	// ExecuteStart is called before the execution of the executable. The
 	// executableName parameter is the name of the credential helper executable
@@ -57,7 +57,7 @@ type ExecutableTrace struct {
 // context. If none, it returns nil.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	trace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
 	return trace
@@ -69,7 +69,7 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 // in addition to the previous ones. The recent hooks will be called first.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
 	if trace == nil {
 		return ctx

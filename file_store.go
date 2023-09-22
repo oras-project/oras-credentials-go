@@ -31,7 +31,7 @@ import (
 // Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type FileStore struct {
 	// DisablePut disables putting credentials in plaintext.
 	// If DisablePut is set to true, Put() will return ErrPlaintextPutDisabled.
@@ -45,13 +45,13 @@ var (
 	// to true.
 	//
 	// Deprecated: This type is deprecated.
-	// The same functionality is now provided by oras-go v2.
+	// The same functionality is now provided by oras-go.
 	ErrPlaintextPutDisabled = errors.New("putting plaintext credentials is disabled")
 	// ErrBadCredentialFormat is returned by Put() when the credential format
 	// is bad.
 	//
 	// Deprecated: This type is deprecated.
-	// The same functionality is now provided by oras-go v2.
+	// The same functionality is now provided by oras-go.
 	ErrBadCredentialFormat = errors.New("bad credential format")
 )
 
@@ -60,7 +60,7 @@ var (
 // Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewFileStore(configPath string) (*FileStore, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -77,7 +77,7 @@ func newFileStore(cfg *config.Config) *FileStore {
 // Get retrieves credentials from the store for the given server address.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
 	return fs.config.GetCredential(serverAddress)
 }
@@ -86,7 +86,7 @@ func (fs *FileStore) Get(_ context.Context, serverAddress string) (auth.Credenti
 // Returns ErrPlaintextPutDisabled if fs.DisablePut is set to true.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
 	if fs.DisablePut {
 		return ErrPlaintextPutDisabled
@@ -101,7 +101,7 @@ func (fs *FileStore) Put(_ context.Context, serverAddress string, cred auth.Cred
 // Delete removes credentials from the store for the given server address.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (fs *FileStore) Delete(_ context.Context, serverAddress string) error {
 	return fs.config.DeleteCredential(serverAddress)
 }

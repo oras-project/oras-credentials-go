@@ -59,7 +59,7 @@ type nativeStore struct {
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewNativeStore(helperSuffix string) Store {
 	return &nativeStore{
 		exec: executer.New(remoteCredentialsPrefix + helperSuffix),
@@ -77,7 +77,7 @@ func NewNativeStore(helperSuffix string) Store {
 //   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewDefaultNativeStore() (Store, bool) {
 	if helper := getDefaultHelperSuffix(); helper != "" {
 		return NewNativeStore(helper), true

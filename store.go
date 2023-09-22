@@ -14,9 +14,9 @@ limitations under the License.
 */
 
 // Deprecated: This package is deprecated.
-// The same functionality is now provided by [oras-go v2].
+// The same functionality is now provided by [oras-go].
 //
-// [oras-go v2]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials
+// [oras-go]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials
 package credentials
 
 import (
@@ -39,7 +39,7 @@ const (
 // Store is the interface that any credentials store must implement.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type Store interface {
 	// Get retrieves credentials from the store for the given server address.
 	Get(ctx context.Context, serverAddress string) (auth.Credential, error)
@@ -53,7 +53,7 @@ type Store interface {
 // in the config file.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type DynamicStore struct {
 	config             *config.Config
 	options            StoreOptions
@@ -64,7 +64,7 @@ type DynamicStore struct {
 // StoreOptions provides options for NewStore.
 //
 // Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 type StoreOptions struct {
 	// AllowPlaintextPut allows saving credentials in plaintext in the config
 	// file.
@@ -104,7 +104,7 @@ type StoreOptions struct {
 //   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -133,7 +133,7 @@ func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 //   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewStoreFromDocker(opt StoreOptions) (*DynamicStore, error) {
 	configPath, err := getDockerConfigPath()
 	if err != nil {
@@ -145,7 +145,7 @@ func NewStoreFromDocker(opt StoreOptions) (*DynamicStore, error) {
 // Get retrieves credentials from the store for the given server address.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ds *DynamicStore) Get(ctx context.Context, serverAddress string) (auth.Credential, error) {
 	return ds.getStore(serverAddress).Get(ctx, serverAddress)
 }
@@ -155,7 +155,7 @@ func (ds *DynamicStore) Get(ctx context.Context, serverAddress string) (auth.Cre
 // [StoreOptions].AllowPlaintextPut is set to false.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ds *DynamicStore) Put(ctx context.Context, serverAddress string, cred auth.Credential) (returnErr error) {
 	if err := ds.getStore(serverAddress).Put(ctx, serverAddress, cred); err != nil {
 		return err
@@ -174,7 +174,7 @@ func (ds *DynamicStore) Put(ctx context.Context, serverAddress string, cred auth
 // Delete removes credentials from the store for the given server address.
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ds *DynamicStore) Delete(ctx context.Context, serverAddress string) error {
 	return ds.getStore(serverAddress).Delete(ctx, serverAddress)
 }
@@ -188,7 +188,7 @@ func (ds *DynamicStore) Delete(ctx context.Context, serverAddress string) error 
 //   - Or there is any entry in the "auths" field
 //
 // Deprecated: This method is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func (ds *DynamicStore) IsAuthConfigured() bool {
 	return ds.config.IsAuthConfigured()
 }
@@ -247,7 +247,7 @@ type storeWithFallbacks struct {
 //   - Delete() deletes the credentials from the primary store.
 //
 // Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go v2.
+// The same functionality is now provided by oras-go.
 func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
 	if len(fallbacks) == 0 {
 		return primary
