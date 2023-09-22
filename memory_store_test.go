@@ -49,7 +49,7 @@ func TestMemoryStore_Get_validRecord(t *testing.T) {
 		RefreshToken: "identity_token",
 		AccessToken:  "registry_token",
 	}
-	ms.store.Store(serverAddress, want)
+	ms.Put(ctx, serverAddress, want)
 
 	got, err := ms.Get(ctx, serverAddress)
 	if err != nil {

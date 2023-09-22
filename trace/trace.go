@@ -21,6 +21,8 @@ package trace
 
 import (
 	"context"
+
+	orastrace "oras.land/oras-go/v2/registry/remote/credentials/trace"
 )
 
 // executableTraceContextKey is a value key used to retrieve the ExecutableTrace
@@ -32,26 +34,7 @@ type executableTraceContextKey struct{}
 //
 // Deprecated: This type is deprecated.
 // The same functionality is now provided by oras-go.
-type ExecutableTrace struct {
-	// ExecuteStart is called before the execution of the executable. The
-	// executableName parameter is the name of the credential helper executable
-	// used with NativeStore. The action parameter is one of "store", "get" and
-	// "erase".
-	//
-	// Reference:
-	//   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
-	ExecuteStart func(executableName string, action string)
-
-	// ExecuteDone is called after the execution of an executable completes.
-	// The executableName parameter is the name of the credential helper
-	// executable used with NativeStore. The action parameter is one of "store",
-	// "get" and "erase". The err parameter is the error (if any) returned from
-	// the execution.
-	//
-	// Reference:
-	//   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
-	ExecuteDone func(executableName string, action string, err error)
-}
+type ExecutableTrace = orastrace.ExecutableTrace
 
 // ContextExecutableTrace returns the ExecutableTrace associated with the
 // context. If none, it returns nil.
@@ -59,8 +42,7 @@ type ExecutableTrace struct {
 // Deprecated: This type is deprecated.
 // The same functionality is now provided by oras-go.
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
-	trace, _ := ctx.Value(executableTraceContextKey{}).(*ExecutableTrace)
-	return trace
+	return orastrace.ContextExecutableTrace(ctx)
 }
 
 // WithExecutableTrace takes a Context and an ExecutableTrace, and returns a
@@ -71,39 +53,5 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 // Deprecated: This type is deprecated.
 // The same functionality is now provided by oras-go.
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
-	if trace == nil {
-		return ctx
-	}
-	if oldTrace := ContextExecutableTrace(ctx); oldTrace != nil {
-		trace.compose(oldTrace)
-	}
-	return context.WithValue(ctx, executableTraceContextKey{}, trace)
-}
-
-// compose takes an oldTrace and modifies the existing trace to include
-// the hooks defined in the oldTrace. The hooks in the existing trace will
-// be called first.
-func (trace *ExecutableTrace) compose(oldTrace *ExecutableTrace) {
-	if oldStart := oldTrace.ExecuteStart; oldStart != nil {
-		start := trace.ExecuteStart
-		if start != nil {
-			trace.ExecuteStart = func(executableName, action string) {
-				start(executableName, action)
-				oldStart(executableName, action)
-			}
-		} else {
-			trace.ExecuteStart = oldStart
-		}
-	}
-	if oldDone := oldTrace.ExecuteDone; oldDone != nil {
-		done := trace.ExecuteDone
-		if done != nil {
-			trace.ExecuteDone = func(executableName, action string, err error) {
-				done(executableName, action, err)
-				oldDone(executableName, action, err)
-			}
-		} else {
-			trace.ExecuteDone = oldDone
-		}
-	}
+	return orastrace.WithExecutableTrace(ctx, trace)
 }

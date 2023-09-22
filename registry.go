@@ -17,11 +17,10 @@ package credentials
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // ErrClientTypeUnsupported is thrown by Login() when the registry's client type
@@ -29,7 +28,7 @@ import (
 //
 // Deprecated: This type is deprecated.
 // The same functionality is now provided by oras-go.
-var ErrClientTypeUnsupported = errors.New("client type not supported")
+var ErrClientTypeUnsupported = orascreds.ErrClientTypeUnsupported
 
 // Login provides the login functionality with the given credentials. The target
 // registry's client should be nil or of type *auth.Client. Login uses
@@ -39,30 +38,7 @@ var ErrClientTypeUnsupported = errors.New("client type not supported")
 // Deprecated: This function is deprecated.
 // The same functionality is now provided by oras-go.
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
-	// create a clone of the original registry for login purpose
-	regClone := *reg
-	// we use the original client if applicable, otherwise use a default client
-	var authClient auth.Client
-	if reg.Client == nil {
-		authClient = *auth.DefaultClient
-		authClient.Cache = nil // no cache
-	} else if client, ok := reg.Client.(*auth.Client); ok {
-		authClient = *client
-	} else {
-		return ErrClientTypeUnsupported
-	}
-	regClone.Client = &authClient
-	// update credentials with the client
-	authClient.Credential = auth.StaticCredential(reg.Reference.Registry, cred)
-	// validate and store the credential
-	if err := regClone.Ping(ctx); err != nil {
-		return fmt.Errorf("failed to validate the credentials for %s: %w", regClone.Reference.Registry, err)
-	}
-	hostname := ServerAddressFromRegistry(regClone.Reference.Registry)
-	if err := store.Put(ctx, hostname, cred); err != nil {
-		return fmt.Errorf("failed to store the credentials for %s: %w", hostname, err)
-	}
-	return nil
+	return orascreds.Login(ctx, store, reg, cred)
 }
 
 // Logout provides the logout functionality given the registry name.
@@ -70,11 +46,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 // Deprecated: This function is deprecated.
 // The same functionality is now provided by oras-go.
 func Logout(ctx context.Context, store Store, registryName string) error {
-	registryName = ServerAddressFromRegistry(registryName)
-	if err := store.Delete(ctx, registryName); err != nil {
-		return fmt.Errorf("failed to delete the credential for %s: %w", registryName, err)
-	}
-	return nil
+	return orascreds.Logout(ctx, store, registryName)
 }
 
 // Credential returns a Credential() function that can be used by auth.Client.
@@ -82,13 +54,7 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 // Deprecated: This function is deprecated.
 // The same functionality is now provided by oras-go.
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
-	return func(ctx context.Context, reg string) (auth.Credential, error) {
-		reg = ServerAddressFromHostname(reg)
-		if reg == "" {
-			return auth.EmptyCredential, nil
-		}
-		return store.Get(ctx, reg)
-	}
+	return orascreds.Credential(store)
 }
 
 // ServerAddressFromRegistry maps a registry to a server address, which is used as
@@ -99,10 +65,7 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 // Deprecated: This function is deprecated.
 // The same functionality is now provided by oras-go.
 func ServerAddressFromRegistry(registry string) string {
-	if registry == "docker.io" {
-		return "https://index.docker.io/v1/"
-	}
-	return registry
+	return orascreds.ServerAddressFromRegistry(registry)
 }
 
 // ServerAddressFromHostname maps a hostname to a server address, which is used as
@@ -113,8 +76,5 @@ func ServerAddressFromRegistry(registry string) string {
 // Deprecated: This function is deprecated.
 // The same functionality is now provided by oras-go.
 func ServerAddressFromHostname(hostname string) string {
-	if hostname == "registry-1.docker.io" {
-		return "https://index.docker.io/v1/"
-	}
-	return hostname
+	return orascreds.ServerAddressFromHostname(hostname)
 }

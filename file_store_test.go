@@ -877,34 +877,3 @@ func TestFileStore_Delete_notExistConfig(t *testing.T) {
 		t.Errorf("Stat(%s) error = %v, wantErr %v", configPath, err, wantErr)
 	}
 }
-
-func Test_validateCredentialFormat(t *testing.T) {
-	tests := []struct {
-		name    string
-		cred    auth.Credential
-		wantErr error
-	}{
-		{
-			name: "Username contains colon",
-			cred: auth.Credential{
-				Username: "x:y",
-				Password: "z",
-			},
-			wantErr: ErrBadCredentialFormat,
-		},
-		{
-			name: "Password contains colon",
-			cred: auth.Credential{
-				Username: "x",
-				Password: "y:z",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := validateCredentialFormat(tt.cred); !errors.Is(err, tt.wantErr) {
-				t.Errorf("validateCredentialFormat() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
