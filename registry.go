@@ -26,12 +26,18 @@ import (
 
 // ErrClientTypeUnsupported is thrown by Login() when the registry's client type
 // is not supported.
+//
+// Deprecated: This type is deprecated.
+// The same functionality is now provided by oras-go v2.
 var ErrClientTypeUnsupported = errors.New("client type not supported")
 
 // Login provides the login functionality with the given credentials. The target
 // registry's client should be nil or of type *auth.Client. Login uses
 // a client local to the function and will not modify the original client of
 // the registry.
+//
+// Deprecated: This function is deprecated.
+// The same functionality is now provided by oras-go v2.
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
 	// create a clone of the original registry for login purpose
 	regClone := *reg
@@ -60,6 +66,9 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 }
 
 // Logout provides the logout functionality given the registry name.
+//
+// Deprecated: This function is deprecated.
+// The same functionality is now provided by oras-go v2.
 func Logout(ctx context.Context, store Store, registryName string) error {
 	registryName = ServerAddressFromRegistry(registryName)
 	if err := store.Delete(ctx, registryName); err != nil {
@@ -69,6 +78,9 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 }
 
 // Credential returns a Credential() function that can be used by auth.Client.
+//
+// Deprecated: This function is deprecated.
+// The same functionality is now provided by oras-go v2.
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
 	return func(ctx context.Context, reg string) (auth.Credential, error) {
 		reg = ServerAddressFromHostname(reg)
@@ -83,6 +95,9 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 // a key for credentials store. The Docker CLI expects that the credentials of
 // the registry 'docker.io' will be added under the key "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+//
+// Deprecated: This function is deprecated.
+// The same functionality is now provided by oras-go v2.
 func ServerAddressFromRegistry(registry string) string {
 	if registry == "docker.io" {
 		return "https://index.docker.io/v1/"
@@ -94,6 +109,9 @@ func ServerAddressFromRegistry(registry string) string {
 // a key for credentials store. It is expected that the traffic targetting the
 // host "registry-1.docker.io" will be redirected to "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+//
+// Deprecated: This function is deprecated.
+// The same functionality is now provided by oras-go v2.
 func ServerAddressFromHostname(hostname string) string {
 	if hostname == "registry-1.docker.io" {
 		return "https://index.docker.io/v1/"
