@@ -14,9 +14,9 @@ limitations under the License.
 */
 
 // Deprecated: This package is deprecated.
-// The same functionality is now provided by [oras-go].
+// The same functionality is now provided by [oras.land/oras-go/v2/registry/remote/credentials/trace].
 //
-// [oras-go]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace
+// [oras.land/oras-go/v2/registry/remote/credentials/trace]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace
 package trace
 
 import (
@@ -25,22 +25,20 @@ import (
 	orastrace "oras.land/oras-go/v2/registry/remote/credentials/trace"
 )
 
-// executableTraceContextKey is a value key used to retrieve the ExecutableTrace
-// from Context.
-type executableTraceContextKey struct{}
-
 // ExecutableTrace is a set of hooks used to trace the execution of binary
 // executables. Any particular hook may be nil.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [trace.ExecutableTrace] of oras-go.
+//
+// [trace.ExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#ExecutableTrace
 type ExecutableTrace = orastrace.ExecutableTrace
 
 // ContextExecutableTrace returns the ExecutableTrace associated with the
 // context. If none, it returns nil.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This function now simply calls [trace.ContextExecutableTrace] of oras-go.
+//
+// [trace.ContextExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#ContextExecutableTrace
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	return orastrace.ContextExecutableTrace(ctx)
 }
@@ -50,8 +48,9 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 // previously added trace, the hooks defined in the new trace will be added
 // in addition to the previous ones. The recent hooks will be called first.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This function now simply calls [trace.WithExecutableTrace] of oras-go.
+//
+// [trace.WithExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#WithExecutableTrace
 func WithExecutableTrace(ctx context.Context, trace *ExecutableTrace) context.Context {
 	return orastrace.WithExecutableTrace(ctx, trace)
 }

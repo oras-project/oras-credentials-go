@@ -14,9 +14,9 @@ limitations under the License.
 */
 
 // Deprecated: This package is deprecated.
-// The same functionality is now provided by [oras-go].
+// The same functionality is now provided by [oras.land/oras-go/v2/registry/remote/credentials].
 //
-// [oras-go]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials
+// [oras.land/oras-go/v2/registry/remote/credentials]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials
 package credentials
 
 import (
@@ -25,21 +25,24 @@ import (
 
 // Store is the interface that any credentials store must implement.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [credentials.Store] of oras-go.
+//
+// [credentials.Store]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Store
 type Store = orascreds.Store
 
 // DynamicStore dynamically determines which store to use based on the settings
 // in the config file.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [credentials.DynamicStore] of oras-go.
+//
+// [credentials.DynamicStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#DynamicStore
 type DynamicStore = orascreds.DynamicStore
 
 // StoreOptions provides options for NewStore.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [credentials.StoreOptions] of oras-go.
+//
+// [credentials.StoreOptions]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#StoreOptions
 type StoreOptions = orascreds.StoreOptions
 
 // NewStore returns a Store based on the given configuration file.
@@ -55,8 +58,9 @@ type StoreOptions = orascreds.StoreOptions
 //   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 //   - https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewStore] of oras-go.
+//
+// [credentials.NewStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStore
 func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 	return orascreds.NewStore(configPath, opts)
 }
@@ -72,8 +76,9 @@ func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 //   - https://docs.docker.com/engine/reference/commandline/cli/#configuration-files
 //   - https://docs.docker.com/engine/reference/commandline/cli/#change-the-docker-directory
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewStoreFromDocker] of oras-go.
+//
+// [credentials.NewStoreFromDocker]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStoreFromDocker
 func NewStoreFromDocker(opts StoreOptions) (*DynamicStore, error) {
 	return orascreds.NewStoreFromDocker(opts)
 }
@@ -85,8 +90,9 @@ func NewStoreFromDocker(opts StoreOptions) (*DynamicStore, error) {
 //   - Put() saves the credentials into the primary store.
 //   - Delete() deletes the credentials from the primary store.
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewStoreWithFallbacks] of oras-go.
+//
+// [credentials.NewStoreWithFallbacks]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStoreWithFallbacks
 func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
 	return orascreds.NewStoreWithFallbacks(primary, fallbacks...)
 }

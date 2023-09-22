@@ -21,8 +21,9 @@ import (
 
 // NewMemoryStore creates a new in-memory credentials store.
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewMemoryStore] of oras-go.
+//
+// [credentials.NewMemoryStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewMemoryStore
 func NewMemoryStore() Store {
 	return orascreds.NewMemoryStore()
 }

@@ -26,8 +26,9 @@ import (
 // ErrClientTypeUnsupported is thrown by Login() when the registry's client type
 // is not supported.
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [credentials.ErrClientTypeUnsupported] of oras-go.
+//
+// [credentials.ErrClientTypeUnsupported]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrClientTypeUnsupported
 var ErrClientTypeUnsupported = orascreds.ErrClientTypeUnsupported
 
 // Login provides the login functionality with the given credentials. The target
@@ -35,24 +36,27 @@ var ErrClientTypeUnsupported = orascreds.ErrClientTypeUnsupported
 // a client local to the function and will not modify the original client of
 // the registry.
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.Login] of oras-go.
+//
+// [credentials.Login]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Login
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
 	return orascreds.Login(ctx, store, reg, cred)
 }
 
 // Logout provides the logout functionality given the registry name.
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.Logout] of oras-go.
+//
+// [credentials.Logout]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Logout
 func Logout(ctx context.Context, store Store, registryName string) error {
 	return orascreds.Logout(ctx, store, registryName)
 }
 
 // Credential returns a Credential() function that can be used by auth.Client.
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.Credential] of oras-go.
+//
+// [credentials.Credential]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Credential
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
 	return orascreds.Credential(store)
 }
@@ -62,8 +66,9 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 // the registry 'docker.io' will be added under the key "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.ServerAddressFromRegistry] of oras-go.
+//
+// [credentials.ServerAddressFromRegistry]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromRegistry
 func ServerAddressFromRegistry(registry string) string {
 	return orascreds.ServerAddressFromRegistry(registry)
 }
@@ -73,8 +78,9 @@ func ServerAddressFromRegistry(registry string) string {
 // host "registry-1.docker.io" will be redirected to "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.ServerAddressFromHostname] of oras-go.
+//
+// [credentials.ServerAddressFromHostname]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromHostname
 func ServerAddressFromHostname(hostname string) string {
 	return orascreds.ServerAddressFromHostname(hostname)
 }

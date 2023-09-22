@@ -24,22 +24,25 @@ import (
 //
 // Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
-// Deprecated: This type is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This type is now simply [credentials.FileStore] of oras-go.
+//
+// [credentials.FileStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#FileStore
 type FileStore = orascreds.FileStore
 
 var (
 	// ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
 	// to true.
 	//
-	// Deprecated: This type is deprecated.
-	// The same functionality is now provided by oras-go.
+	// Deprecated: This type is now simply [credentials.ErrPlaintextPutDisabled] of oras-go.
+	//
+	// [credentials.ErrPlaintextPutDisabled]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrPlaintextPutDisabled
 	ErrPlaintextPutDisabled = orascreds.ErrPlaintextPutDisabled
 	// ErrBadCredentialFormat is returned by Put() when the credential format
 	// is bad.
 	//
-	// Deprecated: This type is deprecated.
-	// The same functionality is now provided by oras-go.
+	// Deprecated: This type is now simply [credentials.ErrBadCredentialFormat] of oras-go.
+	//
+	// [credentials.ErrBadCredentialFormat]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrBadCredentialFormat
 	ErrBadCredentialFormat = orascreds.ErrBadCredentialFormat
 )
 
@@ -47,8 +50,9 @@ var (
 //
 // Reference: https://docs.docker.com/engine/reference/commandline/cli/#docker-cli-configuration-file-configjson-properties
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewFileStore] of oras-go.
+//
+// [credentials.NewFileStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewFileStore
 func NewFileStore(configPath string) (*FileStore, error) {
 	return orascreds.NewFileStore(configPath)
 }

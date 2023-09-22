@@ -29,8 +29,9 @@ import (
 // Reference:
 //   - https://docs.docker.com/engine/reference/commandline/login#credentials-store
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewNativeStore] of oras-go.
+//
+// [credentials.NewNativeStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewNativeStore
 func NewNativeStore(helperSuffix string) Store {
 	return orascreds.NewNativeStore(helperSuffix)
 }
@@ -45,8 +46,9 @@ func NewNativeStore(helperSuffix string) Store {
 // Reference:
 //   - https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 //
-// Deprecated: This function is deprecated.
-// The same functionality is now provided by oras-go.
+// Deprecated: This funciton now simply calls [credentials.NewDefaultNativeStore] of oras-go.
+//
+// [credentials.NewDefaultNativeStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewDefaultNativeStore
 func NewDefaultNativeStore() (Store, bool) {
 	return orascreds.NewDefaultNativeStore()
 }
