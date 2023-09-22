@@ -23,12 +23,6 @@ import (
 	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
-const (
-	dockerConfigDirEnv   = "DOCKER_CONFIG"
-	dockerConfigFileDir  = ".docker"
-	dockerConfigFileName = "config.json"
-)
-
 // Store is the interface that any credentials store must implement.
 //
 // Deprecated: This type is deprecated.
