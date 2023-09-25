@@ -16,7 +16,7 @@ limitations under the License.
 package credentials
 
 import (
-	credentials "oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // NewNativeStore creates a new native store that uses a remote helper program to

@@ -20,7 +20,7 @@ limitations under the License.
 package credentials
 
 import (
-	credentials "oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // Store is the interface that any credentials store must implement.

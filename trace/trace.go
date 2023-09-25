@@ -22,7 +22,7 @@ package trace
 import (
 	"context"
 
-	trace "oras.land/oras-go/v2/registry/remote/credentials/trace"
+	"oras.land/oras-go/v2/registry/remote/credentials/trace"
 )
 
 // ExecutableTrace is a set of hooks used to trace the execution of binary
