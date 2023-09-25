@@ -16,39 +16,14 @@ limitations under the License.
 package credentials
 
 import (
-	"context"
-	"sync"
-
-	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
-// MemoryStore is a store that keeps credentials in memory.
-type MemoryStore struct {
-	store sync.Map
-}
-
 // NewMemoryStore creates a new in-memory credentials store.
-func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{}
-}
-
-// Get retrieves credentials from the store for the given server address.
-func (ms *MemoryStore) Get(_ context.Context, serverAddress string) (auth.Credential, error) {
-	cred, found := ms.store.Load(serverAddress)
-	if !found {
-		return auth.EmptyCredential, nil
-	}
-	return cred.(auth.Credential), nil
-}
-
-// Put saves credentials into the store for the given server address.
-func (ms *MemoryStore) Put(_ context.Context, serverAddress string, cred auth.Credential) error {
-	ms.store.Store(serverAddress, cred)
-	return nil
-}
-
-// Delete removes credentials from the store for the given server address.
-func (ms *MemoryStore) Delete(_ context.Context, serverAddress string) error {
-	ms.store.Delete(serverAddress)
-	return nil
+//
+// Deprecated: This funciton now simply calls [credentials.NewMemoryStore] of oras-go.
+//
+// [credentials.NewMemoryStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewMemoryStore
+func NewMemoryStore() Store {
+	return credentials.NewMemoryStore()
 }

@@ -53,6 +53,8 @@ func (t *testStore) Delete(ctx context.Context, serverAddress string) error {
 
 func TestLogin(t *testing.T) {
 	// create a test registry
+	testUsername := "test_username"
+	testPassword := "test_password"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		wantedAuthHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(testUsername+":"+testPassword))
 		authHeader := r.Header.Get("Authorization")

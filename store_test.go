@@ -217,13 +217,6 @@ func Test_DynamicStore_authConfigured(t *testing.T) {
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
 	}
-	// Put() should not set detected store back to config
-	if got := ds.detectedCredsStore; got != "" {
-		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
-	}
-	if got := ds.config.CredentialsStore(); got != "" {
-		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
-	}
 
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
@@ -294,13 +287,6 @@ func Test_DynamicStore_authConfigured_DetectDefaultNativeStore(t *testing.T) {
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
 	}
-	// Put() should not set detected store back to config
-	if got := ds.detectedCredsStore; got != "" {
-		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
-	}
-	if got := ds.config.CredentialsStore(); got != "" {
-		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
-	}
 
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
@@ -369,13 +355,6 @@ func Test_DynamicStore_noAuthConfigured(t *testing.T) {
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Put() error =", err)
 	}
-	// Put() should not set detected store back to config
-	if got := ds.detectedCredsStore; got != "" {
-		t.Errorf("ds.detectedCredsStore = %v, want empty", got)
-	}
-	if got := ds.config.CredentialsStore(); got != "" {
-		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
-	}
 
 	// test get
 	got, err := ds.Get(ctx, serverAddr)
@@ -443,23 +422,10 @@ func Test_DynamicStore_noAuthConfigured_DetectDefaultNativeStore(t *testing.T) {
 	if _, err := ds.Get(ctx, serverAddr); err != nil {
 		t.Fatal("DynamicStore.Get() error =", err)
 	}
-	if defaultStore := getDefaultHelperSuffix(); defaultStore != "" {
-		if got := ds.detectedCredsStore; got != defaultStore {
-			t.Errorf("ds.detectedCredsStore = %v, want %v", got, defaultStore)
-		}
-	}
-	if got := ds.config.CredentialsStore(); got != "" {
-		t.Errorf("ds.config.CredentialsStore() = %v, want empty", got)
-	}
 
 	// test put
 	if err := ds.Put(ctx, serverAddr, cred); err != nil {
 		t.Fatal("DynamicStore.Put() error =", err)
-	}
-
-	// Put() should set the detected store back to config
-	if got := ds.config.CredentialsStore(); got != ds.detectedCredsStore {
-		t.Errorf("ds.config.CredentialsStore() = %v, want %v", got, ds.detectedCredsStore)
 	}
 
 	// test get
@@ -552,146 +518,6 @@ func Test_DynamicStore_fileStore_AllowPlainTextPut(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotCfg, wantCfg) {
 		t.Errorf("Decoded config = %v, want %v", gotCfg, wantCfg)
-	}
-}
-
-func Test_DynamicStore_getHelperSuffix(t *testing.T) {
-	tests := []struct {
-		name          string
-		configPath    string
-		serverAddress string
-		want          string
-	}{
-		{
-			name:          "Get cred helper: registry_helper1",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry1.example.com",
-			want:          "registry1-helper",
-		},
-		{
-			name:          "Get cred helper: registry_helper2",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry2.example.com",
-			want:          "registry2-helper",
-		},
-		{
-			name:          "Empty cred helper configured",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry3.example.com",
-			want:          "",
-		},
-		{
-			name:          "No cred helper and creds store configured",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "whatever.example.com",
-			want:          "",
-		},
-		{
-			name:          "Choose cred helper over creds store",
-			configPath:    "testdata/credsStore_config.json",
-			serverAddress: "test.example.com",
-			want:          "test-helper",
-		},
-		{
-			name:          "No cred helper configured, choose cred store",
-			configPath:    "testdata/credsStore_config.json",
-			serverAddress: "whatever.example.com",
-			want:          "teststore",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ds, err := NewStore(tt.configPath, StoreOptions{})
-			if err != nil {
-				t.Fatal("NewStore() error =", err)
-			}
-			if got := ds.getHelperSuffix(tt.serverAddress); got != tt.want {
-				t.Errorf("DynamicStore.getHelperSuffix() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_DynamicStore_getStore_nativeStore(t *testing.T) {
-	tests := []struct {
-		name          string
-		configPath    string
-		serverAddress string
-	}{
-		{
-			name:          "Cred helper configured for registry1.example.com",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry1.example.com",
-		},
-		{
-			name:          "Cred helper configured for registry2.example.com",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry2.example.com",
-		},
-		{
-			name:          "Cred helper configured for test.example.com",
-			configPath:    "testdata/credsStore_config.json",
-			serverAddress: "test.example.com",
-		},
-		{
-			name:          "No cred helper configured, use creds store",
-			configPath:    "testdata/credsStore_config.json",
-			serverAddress: "whaterver.example.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ds, err := NewStore(tt.configPath, StoreOptions{})
-			if err != nil {
-				t.Fatal("NewStore() error =", err)
-			}
-			gotStore := ds.getStore(tt.serverAddress)
-			if _, ok := gotStore.(*nativeStore); !ok {
-				t.Errorf("gotStore is not a native store")
-			}
-		})
-	}
-}
-
-func Test_DynamicStore_getStore_fileStore(t *testing.T) {
-	tests := []struct {
-		name          string
-		configPath    string
-		serverAddress string
-	}{
-		{
-			name:          "Empty cred helper configured for registry3.example.com",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "registry3.example.com",
-		},
-		{
-			name:          "No cred helper configured",
-			configPath:    "testdata/credHelpers_config.json",
-			serverAddress: "whatever.example.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ds, err := NewStore(tt.configPath, StoreOptions{})
-			if err != nil {
-				t.Fatal("NewStore() error =", err)
-			}
-			gotStore := ds.getStore(tt.serverAddress)
-			gotFS1, ok := gotStore.(*FileStore)
-			if !ok {
-				t.Errorf("gotStore is not a file store")
-			}
-
-			// get again, the two file stores should be based on the same config instance
-			gotStore = ds.getStore(tt.serverAddress)
-			gotFS2, ok := gotStore.(*FileStore)
-			if !ok {
-				t.Errorf("gotStore is not a file store")
-			}
-			if gotFS1.config != gotFS2.config {
-				t.Errorf("gotFS1 and gotFS2 are not based on the same config")
-			}
-		})
 	}
 }
 
@@ -868,38 +694,6 @@ func Test_storeWithFallbacks_Delete_throwError(t *testing.T) {
 	err := sf.Delete(ctx, "whatever")
 	if wantErr := errBadStore; !errors.Is(err, wantErr) {
 		t.Errorf("storeWithFallback.Delete() error = %v, wantErr %v", err, wantErr)
-	}
-}
-
-func Test_getDockerConfigPath_env(t *testing.T) {
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal("os.Getwd() error =", err)
-	}
-	t.Setenv("DOCKER_CONFIG", dir)
-
-	got, err := getDockerConfigPath()
-	if err != nil {
-		t.Fatal("getDockerConfigPath() error =", err)
-	}
-	if want := filepath.Join(dir, "config.json"); got != want {
-		t.Errorf("getDockerConfigPath() = %v, want %v", got, want)
-	}
-}
-
-func Test_getDockerConfigPath_homeDir(t *testing.T) {
-	t.Setenv("DOCKER_CONFIG", "")
-
-	got, err := getDockerConfigPath()
-	if err != nil {
-		t.Fatal("getDockerConfigPath() error =", err)
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatal("os.UserHomeDir()")
-	}
-	if want := filepath.Join(homeDir, ".docker", "config.json"); got != want {
-		t.Errorf("getDockerConfigPath() = %v, want %v", got, want)
 	}
 }
 

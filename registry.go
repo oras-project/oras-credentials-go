@@ -17,86 +17,70 @@ package credentials
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // ErrClientTypeUnsupported is thrown by Login() when the registry's client type
 // is not supported.
-var ErrClientTypeUnsupported = errors.New("client type not supported")
+//
+// Deprecated: This type is now simply [credentials.ErrClientTypeUnsupported] of oras-go.
+//
+// [credentials.ErrClientTypeUnsupported]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrClientTypeUnsupported
+var ErrClientTypeUnsupported = credentials.ErrClientTypeUnsupported
 
 // Login provides the login functionality with the given credentials. The target
 // registry's client should be nil or of type *auth.Client. Login uses
 // a client local to the function and will not modify the original client of
 // the registry.
+//
+// Deprecated: This funciton now simply calls [credentials.Login] of oras-go.
+//
+// [credentials.Login]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Login
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
-	// create a clone of the original registry for login purpose
-	regClone := *reg
-	// we use the original client if applicable, otherwise use a default client
-	var authClient auth.Client
-	if reg.Client == nil {
-		authClient = *auth.DefaultClient
-		authClient.Cache = nil // no cache
-	} else if client, ok := reg.Client.(*auth.Client); ok {
-		authClient = *client
-	} else {
-		return ErrClientTypeUnsupported
-	}
-	regClone.Client = &authClient
-	// update credentials with the client
-	authClient.Credential = auth.StaticCredential(reg.Reference.Registry, cred)
-	// validate and store the credential
-	if err := regClone.Ping(ctx); err != nil {
-		return fmt.Errorf("failed to validate the credentials for %s: %w", regClone.Reference.Registry, err)
-	}
-	hostname := ServerAddressFromRegistry(regClone.Reference.Registry)
-	if err := store.Put(ctx, hostname, cred); err != nil {
-		return fmt.Errorf("failed to store the credentials for %s: %w", hostname, err)
-	}
-	return nil
+	return credentials.Login(ctx, store, reg, cred)
 }
 
 // Logout provides the logout functionality given the registry name.
+//
+// Deprecated: This funciton now simply calls [credentials.Logout] of oras-go.
+//
+// [credentials.Logout]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Logout
 func Logout(ctx context.Context, store Store, registryName string) error {
-	registryName = ServerAddressFromRegistry(registryName)
-	if err := store.Delete(ctx, registryName); err != nil {
-		return fmt.Errorf("failed to delete the credential for %s: %w", registryName, err)
-	}
-	return nil
+	return credentials.Logout(ctx, store, registryName)
 }
 
 // Credential returns a Credential() function that can be used by auth.Client.
+//
+// Deprecated: This funciton now simply calls [credentials.Credential] of oras-go.
+//
+// [credentials.Credential]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Credential
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
-	return func(ctx context.Context, reg string) (auth.Credential, error) {
-		reg = ServerAddressFromHostname(reg)
-		if reg == "" {
-			return auth.EmptyCredential, nil
-		}
-		return store.Get(ctx, reg)
-	}
+	return credentials.Credential(store)
 }
 
 // ServerAddressFromRegistry maps a registry to a server address, which is used as
 // a key for credentials store. The Docker CLI expects that the credentials of
 // the registry 'docker.io' will be added under the key "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+//
+// Deprecated: This funciton now simply calls [credentials.ServerAddressFromRegistry] of oras-go.
+//
+// [credentials.ServerAddressFromRegistry]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromRegistry
 func ServerAddressFromRegistry(registry string) string {
-	if registry == "docker.io" {
-		return "https://index.docker.io/v1/"
-	}
-	return registry
+	return credentials.ServerAddressFromRegistry(registry)
 }
 
 // ServerAddressFromHostname maps a hostname to a server address, which is used as
 // a key for credentials store. It is expected that the traffic targetting the
 // host "registry-1.docker.io" will be redirected to "https://index.docker.io/v1/".
 // See: https://github.com/moby/moby/blob/v24.0.2/registry/config.go#L25-L48
+//
+// Deprecated: This funciton now simply calls [credentials.ServerAddressFromHostname] of oras-go.
+//
+// [credentials.ServerAddressFromHostname]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromHostname
 func ServerAddressFromHostname(hostname string) string {
-	if hostname == "registry-1.docker.io" {
-		return "https://index.docker.io/v1/"
-	}
-	return hostname
+	return credentials.ServerAddressFromHostname(hostname)
 }
