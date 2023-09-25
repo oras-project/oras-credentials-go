@@ -30,7 +30,7 @@ import (
 //
 // Deprecated: This type is now simply [trace.ExecutableTrace] of oras-go.
 //
-// [trace.ExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#ExecutableTrace
+// [trace.ExecutableTrace]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace#ExecutableTrace
 type ExecutableTrace = trace.ExecutableTrace
 
 // ContextExecutableTrace returns the ExecutableTrace associated with the
@@ -38,7 +38,7 @@ type ExecutableTrace = trace.ExecutableTrace
 //
 // Deprecated: This function now simply calls [trace.ContextExecutableTrace] of oras-go.
 //
-// [trace.ContextExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#ContextExecutableTrace
+// [trace.ContextExecutableTrace]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace#ContextExecutableTrace
 func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 	return trace.ContextExecutableTrace(ctx)
 }
@@ -50,7 +50,7 @@ func ContextExecutableTrace(ctx context.Context) *ExecutableTrace {
 //
 // Deprecated: This function now simply calls [trace.WithExecutableTrace] of oras-go.
 //
-// [trace.WithExecutableTrace]: http://localhost:6060/pkg/github.com/oras-project/oras-credentials-go/trace/#WithExecutableTrace
+// [trace.WithExecutableTrace]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials/trace#WithExecutableTrace
 func WithExecutableTrace(ctx context.Context, et *ExecutableTrace) context.Context {
 	return trace.WithExecutableTrace(ctx, et)
 }
