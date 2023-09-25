@@ -16,7 +16,7 @@ limitations under the License.
 package credentials
 
 import (
-	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
+	credentials "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // NewNativeStore creates a new native store that uses a remote helper program to
@@ -33,7 +33,7 @@ import (
 //
 // [credentials.NewNativeStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewNativeStore
 func NewNativeStore(helperSuffix string) Store {
-	return orascreds.NewNativeStore(helperSuffix)
+	return credentials.NewNativeStore(helperSuffix)
 }
 
 // NewDefaultNativeStore returns a native store based on the platform-default
@@ -50,5 +50,5 @@ func NewNativeStore(helperSuffix string) Store {
 //
 // [credentials.NewDefaultNativeStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewDefaultNativeStore
 func NewDefaultNativeStore() (Store, bool) {
-	return orascreds.NewDefaultNativeStore()
+	return credentials.NewDefaultNativeStore()
 }

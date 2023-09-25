@@ -20,7 +20,7 @@ import (
 
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
+	credentials "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // ErrClientTypeUnsupported is thrown by Login() when the registry's client type
@@ -29,7 +29,7 @@ import (
 // Deprecated: This type is now simply [credentials.ErrClientTypeUnsupported] of oras-go.
 //
 // [credentials.ErrClientTypeUnsupported]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrClientTypeUnsupported
-var ErrClientTypeUnsupported = orascreds.ErrClientTypeUnsupported
+var ErrClientTypeUnsupported = credentials.ErrClientTypeUnsupported
 
 // Login provides the login functionality with the given credentials. The target
 // registry's client should be nil or of type *auth.Client. Login uses
@@ -40,7 +40,7 @@ var ErrClientTypeUnsupported = orascreds.ErrClientTypeUnsupported
 //
 // [credentials.Login]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Login
 func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Credential) error {
-	return orascreds.Login(ctx, store, reg, cred)
+	return credentials.Login(ctx, store, reg, cred)
 }
 
 // Logout provides the logout functionality given the registry name.
@@ -49,7 +49,7 @@ func Login(ctx context.Context, store Store, reg *remote.Registry, cred auth.Cre
 //
 // [credentials.Logout]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Logout
 func Logout(ctx context.Context, store Store, registryName string) error {
-	return orascreds.Logout(ctx, store, registryName)
+	return credentials.Logout(ctx, store, registryName)
 }
 
 // Credential returns a Credential() function that can be used by auth.Client.
@@ -58,7 +58,7 @@ func Logout(ctx context.Context, store Store, registryName string) error {
 //
 // [credentials.Credential]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Credential
 func Credential(store Store) func(context.Context, string) (auth.Credential, error) {
-	return orascreds.Credential(store)
+	return credentials.Credential(store)
 }
 
 // ServerAddressFromRegistry maps a registry to a server address, which is used as
@@ -70,7 +70,7 @@ func Credential(store Store) func(context.Context, string) (auth.Credential, err
 //
 // [credentials.ServerAddressFromRegistry]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromRegistry
 func ServerAddressFromRegistry(registry string) string {
-	return orascreds.ServerAddressFromRegistry(registry)
+	return credentials.ServerAddressFromRegistry(registry)
 }
 
 // ServerAddressFromHostname maps a hostname to a server address, which is used as
@@ -82,5 +82,5 @@ func ServerAddressFromRegistry(registry string) string {
 //
 // [credentials.ServerAddressFromHostname]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ServerAddressFromHostname
 func ServerAddressFromHostname(hostname string) string {
-	return orascreds.ServerAddressFromHostname(hostname)
+	return credentials.ServerAddressFromHostname(hostname)
 }

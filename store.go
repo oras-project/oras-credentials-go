@@ -20,7 +20,7 @@ limitations under the License.
 package credentials
 
 import (
-	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
+	credentials "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // Store is the interface that any credentials store must implement.
@@ -28,7 +28,7 @@ import (
 // Deprecated: This type is now simply [credentials.Store] of oras-go.
 //
 // [credentials.Store]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#Store
-type Store = orascreds.Store
+type Store = credentials.Store
 
 // DynamicStore dynamically determines which store to use based on the settings
 // in the config file.
@@ -36,14 +36,14 @@ type Store = orascreds.Store
 // Deprecated: This type is now simply [credentials.DynamicStore] of oras-go.
 //
 // [credentials.DynamicStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#DynamicStore
-type DynamicStore = orascreds.DynamicStore
+type DynamicStore = credentials.DynamicStore
 
 // StoreOptions provides options for NewStore.
 //
 // Deprecated: This type is now simply [credentials.StoreOptions] of oras-go.
 //
 // [credentials.StoreOptions]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#StoreOptions
-type StoreOptions = orascreds.StoreOptions
+type StoreOptions = credentials.StoreOptions
 
 // NewStore returns a Store based on the given configuration file.
 //
@@ -62,7 +62,7 @@ type StoreOptions = orascreds.StoreOptions
 //
 // [credentials.NewStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStore
 func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
-	return orascreds.NewStore(configPath, opts)
+	return credentials.NewStore(configPath, opts)
 }
 
 // NewStoreFromDocker returns a Store based on the default docker config file.
@@ -80,7 +80,7 @@ func NewStore(configPath string, opts StoreOptions) (*DynamicStore, error) {
 //
 // [credentials.NewStoreFromDocker]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStoreFromDocker
 func NewStoreFromDocker(opts StoreOptions) (*DynamicStore, error) {
-	return orascreds.NewStoreFromDocker(opts)
+	return credentials.NewStoreFromDocker(opts)
 }
 
 // NewStoreWithFallbacks returns a new store based on the given stores.
@@ -94,5 +94,5 @@ func NewStoreFromDocker(opts StoreOptions) (*DynamicStore, error) {
 //
 // [credentials.NewStoreWithFallbacks]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewStoreWithFallbacks
 func NewStoreWithFallbacks(primary Store, fallbacks ...Store) Store {
-	return orascreds.NewStoreWithFallbacks(primary, fallbacks...)
+	return credentials.NewStoreWithFallbacks(primary, fallbacks...)
 }

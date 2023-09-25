@@ -16,7 +16,7 @@ limitations under the License.
 package credentials
 
 import (
-	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
+	credentials "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // FileStore implements a credentials store using the docker configuration file
@@ -27,7 +27,7 @@ import (
 // Deprecated: This type is now simply [credentials.FileStore] of oras-go.
 //
 // [credentials.FileStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#FileStore
-type FileStore = orascreds.FileStore
+type FileStore = credentials.FileStore
 
 var (
 	// ErrPlaintextPutDisabled is returned by Put() when DisablePut is set
@@ -36,14 +36,14 @@ var (
 	// Deprecated: This type is now simply [credentials.ErrPlaintextPutDisabled] of oras-go.
 	//
 	// [credentials.ErrPlaintextPutDisabled]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrPlaintextPutDisabled
-	ErrPlaintextPutDisabled = orascreds.ErrPlaintextPutDisabled
+	ErrPlaintextPutDisabled = credentials.ErrPlaintextPutDisabled
 	// ErrBadCredentialFormat is returned by Put() when the credential format
 	// is bad.
 	//
 	// Deprecated: This type is now simply [credentials.ErrBadCredentialFormat] of oras-go.
 	//
 	// [credentials.ErrBadCredentialFormat]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#ErrBadCredentialFormat
-	ErrBadCredentialFormat = orascreds.ErrBadCredentialFormat
+	ErrBadCredentialFormat = credentials.ErrBadCredentialFormat
 )
 
 // NewFileStore creates a new file credentials store.
@@ -54,5 +54,5 @@ var (
 //
 // [credentials.NewFileStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewFileStore
 func NewFileStore(configPath string) (*FileStore, error) {
-	return orascreds.NewFileStore(configPath)
+	return credentials.NewFileStore(configPath)
 }

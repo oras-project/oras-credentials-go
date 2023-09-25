@@ -16,7 +16,7 @@ limitations under the License.
 package credentials
 
 import (
-	orascreds "oras.land/oras-go/v2/registry/remote/credentials"
+	credentials "oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // NewMemoryStore creates a new in-memory credentials store.
@@ -25,5 +25,5 @@ import (
 //
 // [credentials.NewMemoryStore]: https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials#NewMemoryStore
 func NewMemoryStore() Store {
-	return orascreds.NewMemoryStore()
+	return credentials.NewMemoryStore()
 }
