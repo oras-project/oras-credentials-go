@@ -16,7 +16,6 @@
 > 
 > The APIs previously located in this library have been moved to [`oras-go`](https://github.com/oras-project/oras-go). As a result, these APIs are now deprecated and users should use [the packages](https://pkg.go.dev/oras.land/oras-go/v2/registry/remote/credentials) in `oras-go` instead.
 
-
 ## Versioning
 
 The `oras-credentials-go` library follows [Semantic Versioning](https://semver.org/), where breaking changes are reserved for MAJOR releases, and MINOR and PATCH releases must be 100% backwards compatible.
